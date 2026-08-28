@@ -1,0 +1,90 @@
+import { isUnlocked, nextId, stationSlots } from './query'
+import { HIRE_CLEANER, HIRE_DOCTOR, HIRE_NURSE, MAX_CLEANERS, MAX_NURSES } from './tables'
+import type { ActionResult, Hospital } from './types'
+
+export function hireDoctor(h: Hospital): ActionResult {
+  if (h.money < HIRE_DOCTOR) return { ok: false, reason: '钱不够' }
+  h.money -= HIRE_DOCTOR
+  h.doctors.push({ id: nextId(h, 'doc'), roomId: null, hireCost: HIRE_DOCTOR })
+  return { ok: true }
+}
+
+export function hireNurse(h: Hospital): ActionResult {
+  if (h.nurses >= MAX_NURSES) return { ok: false, reason: '护士满了' }
+  if (h.money < HIRE_NURSE) return { ok: false, reason: '钱不够' }
+  h.money -= HIRE_NURSE
+  h.nurses += 1
+  return { ok: true }
+}
+
+export function hireCleaner(h: Hospital): ActionResult {
+  if (!isUnlocked(h, 'cleaner')) return { ok: false, reason: '尚未解锁' }
+  if (h.cleaners.length >= MAX_CLEANERS) return { ok: false, reason: '保洁满了' }
+  if (h.money < HIRE_CLEANER) return { ok: false, reason: '钱不够' }
+  h.money -= HIRE_CLEANER
+  h.cleaners.push({ id: nextId(h, 'cln'), roomId: null, hireCost: HIRE_CLEANER })
+  return { ok: true }
+}
+
+export function fireDoctor(h: Hospital, doctorId: string): ActionResult {
+  const doctor = h.doctors.find((d) => d.id === doctorId)
+  if (!doctor) return { ok: false, reason: '没有这个人' }
+  if (doctor.roomId) {
+    const room = h.rooms.find((r) => r.id === doctor.roomId)
+    if (room) room.doctorIds = room.doctorIds.filter((id) => id !== doctor.id)
+  }
+  h.money += Math.floor(doctor.hireCost * 0.5)
+  h.doctors = h.doctors.filter((d) => d.id !== doctor.id)
+  return { ok: true }
+}
+
+export function fireNurse(h: Hospital): ActionResult {
+  if (h.nurses <= 0) return { ok: false, reason: '没有护士' }
+  h.nurses -= 1
+  h.money += Math.floor(HIRE_NURSE * 0.5)
+  return { ok: true }
+}
+
+export function fireCleaner(h: Hospital, cleanerId: string): ActionResult {
+  const cleaner = h.cleaners.find((c) => c.id === cleanerId)
+  if (!cleaner) return { ok: false, reason: '没有这个人' }
+  h.money += Math.floor(cleaner.hireCost * 0.5)
+  h.cleaners = h.cleaners.filter((c) => c.id !== cleaner.id)
+  return { ok: true }
+}
+
+export function assignDoctor(h: Hospital, doctorId: string, roomId: string): ActionResult {
+  const doctor = h.doctors.find((d) => d.id === doctorId)
+  const room = h.rooms.find((r) => r.id === roomId)
+  if (!doctor || !room) return { ok: false, reason: '找不到人或房' }
+  if (room.type === 'waiting') return { ok: false, reason: '候诊厅不能派医生' }
+  if (room.doctorIds.length >= stationSlots(room)) return { ok: false, reason: '工位满了' }
+  if (doctor.roomId) {
+    const old = h.rooms.find((r) => r.id === doctor.roomId)
+    if (old) old.doctorIds = old.doctorIds.filter((id) => id !== doctor.id)
+  }
+  doctor.roomId = room.id
+  room.doctorIds.push(doctor.id)
+  return { ok: true }
+}
+
+export function unassignDoctor(h: Hospital, doctorId: string): ActionResult {
+  const doctor = h.doctors.find((d) => d.id === doctorId)
+  if (!doctor || !doctor.roomId) return { ok: false, reason: '没在岗' }
+  const room = h.rooms.find((r) => r.id === doctor.roomId)
+  if (room) room.doctorIds = room.doctorIds.filter((id) => id !== doctor.id)
+  doctor.roomId = null
+  return { ok: true }
+}
+
+export function assignCleaner(h: Hospital, cleanerId: string, roomId: string): ActionResult {
+  const cleaner = h.cleaners.find((c) => c.id === cleanerId)
+  const room = h.rooms.find((r) => r.id === roomId)
+  if (!cleaner || !room) return { ok: false, reason: '找不到人或房' }
+  cleaner.roomId = room.id
+  return { ok: true }
+}
+
+export function idleDoctors(h: Hospital) {
+  return h.doctors.filter((d) => !d.roomId)
+}

@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { hasReception } from '../sim/query'
 import Board from './board.vue'
+import BuildBar from './buildBar.vue'
+import EventCard from './eventCard.vue'
 import { useGameStore } from './gameStore'
+import RoomPanel from './roomPanel.vue'
+import StaffBar from './staffBar.vue'
 import TopBar from './topBar.vue'
 
 const game = useGameStore()
+const running = computed(() => hasReception(game.hospital))
 
 onMounted(() => {
   game.startClock()
@@ -18,12 +24,25 @@ onUnmounted(() => {
 <template>
   <div class="shell">
     <header class="mast">
-      <p class="shift">夜班 · 产线未开</p>
+      <p class="shift">{{ running ? '夜班 · 产线在转' : '夜班 · 先放前台' }}</p>
       <h1>格子医院</h1>
     </header>
     <TopBar />
+    <StaffBar />
+    <BuildBar />
+    <p v-if="game.notice" class="notice">{{ game.notice }}</p>
     <Board />
-    <p class="hint">先放前台。正门在底边正中，前台必须贴着它。</p>
+    <RoomPanel />
+    <p class="hint">
+      {{
+        game.buildType === 'reception'
+          ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
+          : game.buildType === 'surgery' && !game.surgeryFirst
+            ? '手术室：先点第一格，再点相邻格。'
+            : '选房间类型，点空地建造。点已建房派人、升级或卖掉。'
+      }}
+    </p>
+    <EventCard />
   </div>
 </template>
 
@@ -31,7 +50,7 @@ onUnmounted(() => {
 .shell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   max-width: 420px;
   min-height: 100dvh;
   margin: 0 auto;
@@ -62,10 +81,18 @@ h1 {
   letter-spacing: 0.12em;
 }
 
-.hint {
+.hint,
+.notice {
   margin: 0;
-  color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.notice {
+  color: var(--iodine);
 }
 </style>

@@ -19,6 +19,31 @@ export type PatientState =
   | 'leave'
   | 'dead'
 
+export type UnlockKey =
+  | DiseaseId
+  | RoomType
+  | 'cleaner'
+  | 'compact'
+  | 'dual'
+  | 'er'
+  | 'week'
+  | 'intercept'
+
+export type EventId =
+  | 'infectAdmit'
+  | 'vipCut'
+  | 'inspect'
+  | 'vendor'
+  | 'raise'
+  | 'media'
+
+export type Buff =
+  | { kind: 'infectWeight'; remainS: number; mul: number }
+  | { kind: 'spawnInterval'; remainS: number; mul: number }
+  | { kind: 'doctorSpeed'; remainS: number; mul: number }
+  | { kind: 'roomThroughput'; remainS: number; roomId: string; mul: number }
+  | { kind: 'roomVacant'; remainS: number; roomId: string }
+
 export type Tile = {
   r: number
   c: number
@@ -37,6 +62,7 @@ export type Room = {
   queue: string[]
   pollution: number
   builtCost: number
+  upgradeSpent: number
   recipeId?: string
   progress: number
 }
@@ -51,19 +77,35 @@ export type Patient = {
   rage: number
   stage: number
   waitS: number
+  tickInState: number
   x: number
   y: number
+  walkFromX: number
+  walkFromY: number
+  walkToX: number
+  walkToY: number
+  walkRemain: number
+  walkTotal: number
+  inRoomId: string | null
+  toRoomId: string | null
+  toHall: boolean
+  toDoor: boolean
+  blocked: boolean
 }
 
 export type Doctor = {
   id: string
   roomId: string | null
+  hireCost: number
 }
 
 export type Cleaner = {
   id: string
   roomId: string | null
+  hireCost: number
 }
+
+export type RollMode = 'rand' | 'always' | 'never'
 
 export type Hospital = {
   money: number
@@ -73,9 +115,20 @@ export type Hospital = {
   cleaners: Cleaner[]
   rooms: Room[]
   patients: Patient[]
-  unlocks: string[]
   lastTick: number
   elapsedS: number
+  spawnAcc: number
+  nextId: number
+  rng: number
+  rollMode: RollMode
+  discharged: number
+  leftCount: number
+  deadCount: number
   erOpen: boolean
   interceptUsed: boolean
+  pendingEvent: EventId | null
+  eventIn: number
+  buffs: Buff[]
 }
+
+export type ActionResult = { ok: true } | { ok: false; reason: string }

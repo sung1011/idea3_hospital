@@ -1,10 +1,27 @@
+import { cloneHospital } from './clone'
+import { stepEvents } from './events'
+import { stepHalls, stepNeeds, stepRooms, stepSpawn, stepWalk, stepWard, sweepGone } from './flow'
+import { stepPollution } from './pollution'
 import type { Hospital } from './types'
 
-/** 第 0 档只走时钟。进场 / 走路 / 吞吐从第 1 档接入。 */
 export function tick(hospital: Hospital): Hospital {
-  return {
-    ...hospital,
-    elapsedS: hospital.elapsedS + 1,
-    lastTick: Date.now(),
-  }
+  const h = cloneHospital(hospital)
+  h.elapsedS += 1
+  h.lastTick = Date.now()
+  stepEvents(h)
+  stepPollution(h)
+  stepNeeds(h)
+  stepWard(h)
+  stepHalls(h)
+  stepRooms(h)
+  stepWalk(h)
+  stepSpawn(h)
+  sweepGone(h)
+  return h
+}
+
+export function ticks(hospital: Hospital, n: number): Hospital {
+  let h = hospital
+  for (let i = 0; i < n; i++) h = tick(h)
+  return h
 }

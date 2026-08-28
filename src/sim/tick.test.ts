@@ -1,26 +1,153 @@
 import { describe, expect, it } from 'vitest'
+import { buildRoom, sellRoom, upgradeQueue } from './build'
 import { createHospital } from './createHospital'
-import { START_FAME, START_MONEY } from './tables'
-import { tick } from './tick'
+import { chooseEvent } from './events'
+import { spawnPatient, walkDuration } from './flow'
+import { pollutionCoef } from './query'
+import { assignDoctor, hireNurse } from './staff'
+import { START_DOCTORS, START_FAME, START_MONEY } from './tables'
+import { tick, ticks } from './tick'
+import type { Hospital } from './types'
+
+function line(h = createHospital()): Hospital {
+  h.rollMode = 'always'
+  h.eventIn = 99999
+  buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+  buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])
+  buildRoom(h, 'treatment', [{ r: 2, c: 2 }])
+  buildRoom(h, 'pharmacy', [{ r: 1, c: 2 }])
+  h.rooms.forEach((room, i) => assignDoctor(h, h.doctors[i].id, room.id))
+  return h
+}
 
 describe('createHospital', () => {
-  it('opens with starting money, fame, one doctor and one nurse', () => {
+  it('opens with money, fame, four doctors and one nurse', () => {
     const hospital = createHospital()
     expect(hospital.money).toBe(START_MONEY)
     expect(hospital.fame).toBe(START_FAME)
     expect(hospital.nurses).toBe(1)
-    expect(hospital.doctors).toHaveLength(1)
+    expect(hospital.doctors).toHaveLength(START_DOCTORS)
     expect(hospital.rooms).toHaveLength(0)
-    expect(hospital.patients).toHaveLength(0)
+  })
+})
+
+describe('build', () => {
+  it('rejects reception that is not next to the door', () => {
+    const h = createHospital()
+    expect(buildRoom(h, 'reception', [{ r: 0, c: 0 }]).ok).toBe(false)
+    expect(buildRoom(h, 'reception', [{ r: 4, c: 2 }]).ok).toBe(true)
+  })
+
+  it('sells and refunds half', () => {
+    const h = createHospital()
+    buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])
+    expect(h.money).toBe(START_MONEY - 40)
+    expect(sellRoom(h, h.rooms[0].id).ok).toBe(true)
+    expect(h.money).toBe(START_MONEY - 20)
+    expect(h.rooms).toHaveLength(0)
   })
 })
 
 describe('tick', () => {
-  it('advances elapsedS by 1 and does not spawn anyone', () => {
-    const hospital = createHospital()
-    const next = tick(hospital)
-    expect(next.elapsedS).toBe(1)
+  it('does not spawn without a reception', () => {
+    const next = ticks(createHospital(), 20)
     expect(next.patients).toHaveLength(0)
-    expect(next.money).toBe(hospital.money)
+  })
+
+  it('discharges a cold along a staffed line', () => {
+    const h = ticks(line(), 180)
+    expect(h.discharged).toBeGreaterThan(0)
+    expect(h.money).toBeGreaterThan(0)
+  })
+
+  it('stops spawning at fame 0', () => {
+    const h = line()
+    h.fame = 0
+    const next = ticks(h, 20)
+    expect(next.patients).toHaveLength(0)
+  })
+
+  it('leaves when the next room is missing and rage is high', () => {
+    const h = createHospital()
+    h.rollMode = 'always'
+    h.eventIn = 99999
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    assignDoctor(h, h.doctors[0].id, h.rooms[0].id)
+    let next = ticks(h, 40)
+    const stuck = next.patients.find((p) => p.blocked)
+    expect(stuck).toBeTruthy()
+    stuck!.rage = 80
+    next = tick(next)
+    expect(next.leftCount).toBeGreaterThan(0)
+  })
+})
+
+describe('staff and pollution', () => {
+  it('more nurses walk faster', () => {
+    const a = createHospital()
+    const b = createHospital()
+    b.nurses = 4
+    const from = { r: 4, c: 2 }
+    const to = { r: 0, c: 2 }
+    expect(walkDuration(b, from, to)).toBeLessThan(walkDuration(a, from, to))
+  })
+
+  it('empty station has zero throughput so the room only blocks', () => {
+    const h = createHospital()
+    h.rollMode = 'always'
+    h.eventIn = 99999
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    spawnPatient(h, 'cold')
+    const next = ticks(h, 30)
+    const reception = next.rooms[0]
+    expect(reception.queue.length).toBeGreaterThan(0)
+    expect(next.discharged).toBe(0)
+  })
+
+  it('upgrades queue cap', () => {
+    const h = createHospital()
+    h.money = 200
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    expect(upgradeQueue(h, h.rooms[0].id).ok).toBe(true)
+    expect(h.rooms[0].levelFlags.queuePlus2).toBe(true)
+  })
+
+  it('hires a nurse', () => {
+    const h = createHospital()
+    h.money = 80
+    expect(hireNurse(h).ok).toBe(true)
+    expect(h.nurses).toBe(2)
+  })
+
+  it('pollution coefficient drops after 30', () => {
+    expect(pollutionCoef(30)).toBe(1)
+    expect(pollutionCoef(40)).toBeCloseTo(0.9)
+    expect(pollutionCoef(100)).toBeCloseTo(0.9 ** 7)
+    expect(pollutionCoef(200)).toBe(0.4)
+  })
+})
+
+describe('waiting hall and events', () => {
+  it('overflows into a waiting hall when the next room is full', () => {
+    const h = createHospital()
+    h.rollMode = 'always'
+    h.eventIn = 99999
+    h.discharged = 15
+    h.money = 400
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    buildRoom(h, 'waiting', [{ r: 4, c: 0 }])
+    assignDoctor(h, h.doctors[0].id, h.rooms[0].id)
+    const next = ticks(h, 80)
+    const hall = next.rooms.find((r) => r.type === 'waiting')
+    expect(hall).toBeTruthy()
+    expect((hall?.queue.length ?? 0) + next.leftCount).toBeGreaterThan(0)
+  })
+
+  it('applies a daily event choice', () => {
+    const h = createHospital()
+    h.pendingEvent = 'media'
+    expect(chooseEvent(h, 'left').ok).toBe(true)
+    expect(h.buffs.some((b) => b.kind === 'spawnInterval')).toBe(true)
+    expect(h.pendingEvent).toBeNull()
   })
 })
