@@ -1,0 +1,35 @@
+:root {
+  --night: #1a3a3a;
+  --night-deep: #102424;
+  --linoleum: #c4b8a0;
+  --grout: #8a816c;
+  --paper: #e8e0d0;
+  --ink: #2a2420;
+  --stamp: #c43c4a;
+  --iodine: #e8a317;
+  --fame: #d45d79;
+  --muted: #7a8a8a;
+  --font-display: 'Noto Serif SC', 'Songti SC', serif;
+  --font-body: 'Noto Sans SC', 'PingFang SC', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--night-deep);
+  color: var(--paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
