@@ -148,31 +148,31 @@ function actorStyle(p: { x: number; y: number }) {
 
 .coord {
   position: absolute;
-  top: 3px;
-  left: 4px;
+  top: 5px;
+  left: 6px;
   z-index: 1;
   color: #6f6756;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .room {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
+  right: 6px;
+  bottom: 6px;
   z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.15;
 }
 
 .room small {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -192,13 +192,13 @@ function actorStyle(p: { x: number; y: number }) {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
+  min-height: 36px;
 }
 
 .door {
   color: #fff8f0;
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.2em;
   background: var(--stamp);
@@ -213,9 +213,9 @@ function actorStyle(p: { x: number; y: number }) {
 
 .dot {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
   border: 1px solid #1a1410;
   border-radius: 50%;
 }

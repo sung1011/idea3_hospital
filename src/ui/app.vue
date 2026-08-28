@@ -51,10 +51,11 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 420px;
+  width: min(720px, 100%);
+  max-width: 720px;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 20px 16px 28px;
+  padding: 24px 20px 32px;
   background:
     radial-gradient(ellipse at 50% -10%, #2a4f4f 0%, transparent 55%),
     var(--night);

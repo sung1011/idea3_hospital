@@ -34,7 +34,7 @@ const game = useGameStore()
 }
 
 .card {
-  width: min(380px, 100%);
+  width: min(480px, 100%);
   padding: 18px 16px 16px;
   background: var(--paper);
   color: var(--ink);

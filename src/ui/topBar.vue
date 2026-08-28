@@ -61,7 +61,7 @@ const clock = computed(() => {
 
 .value {
   font-family: var(--font-mono);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
