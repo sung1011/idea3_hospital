@@ -1,5 +1,5 @@
-import { isUnlocked, nextId, stationSlots } from './query'
-import { HIRE_CLEANER, HIRE_DOCTOR, HIRE_NURSE, MAX_CLEANERS, MAX_NURSES } from './tables'
+import { nextId, stationSlots } from './query'
+import { HIRE_DOCTOR, HIRE_NURSE, MAX_NURSES } from './tables'
 import type { ActionResult, Hospital } from './types'
 
 export function hireDoctor(h: Hospital): ActionResult {
@@ -14,15 +14,6 @@ export function hireNurse(h: Hospital): ActionResult {
   if (h.money < HIRE_NURSE) return { ok: false, reason: '钱不够' }
   h.money -= HIRE_NURSE
   h.nurses += 1
-  return { ok: true }
-}
-
-export function hireCleaner(h: Hospital): ActionResult {
-  if (!isUnlocked(h, 'cleaner')) return { ok: false, reason: '尚未解锁' }
-  if (h.cleaners.length >= MAX_CLEANERS) return { ok: false, reason: '保洁满了' }
-  if (h.money < HIRE_CLEANER) return { ok: false, reason: '钱不够' }
-  h.money -= HIRE_CLEANER
-  h.cleaners.push({ id: nextId(h, 'cln'), roomId: null, hireCost: HIRE_CLEANER })
   return { ok: true }
 }
 
@@ -42,14 +33,6 @@ export function fireNurse(h: Hospital): ActionResult {
   if (h.nurses <= 0) return { ok: false, reason: '没有护士' }
   h.nurses -= 1
   h.money += Math.floor(HIRE_NURSE * 0.5)
-  return { ok: true }
-}
-
-export function fireCleaner(h: Hospital, cleanerId: string): ActionResult {
-  const cleaner = h.cleaners.find((c) => c.id === cleanerId)
-  if (!cleaner) return { ok: false, reason: '没有这个人' }
-  h.money += Math.floor(cleaner.hireCost * 0.5)
-  h.cleaners = h.cleaners.filter((c) => c.id !== cleaner.id)
   return { ok: true }
 }
 
@@ -74,14 +57,6 @@ export function unassignDoctor(h: Hospital, doctorId: string): ActionResult {
   const room = h.rooms.find((r) => r.id === doctor.roomId)
   if (room) room.doctorIds = room.doctorIds.filter((id) => id !== doctor.id)
   doctor.roomId = null
-  return { ok: true }
-}
-
-export function assignCleaner(h: Hospital, cleanerId: string, roomId: string): ActionResult {
-  const cleaner = h.cleaners.find((c) => c.id === cleanerId)
-  const room = h.rooms.find((r) => r.id === roomId)
-  if (!cleaner || !room) return { ok: false, reason: '找不到人或房' }
-  cleaner.roomId = room.id
   return { ok: true }
 }
 

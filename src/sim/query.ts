@@ -4,11 +4,16 @@ import {
   NURSE_WALK_FLOOR,
   NURSE_WALK_STEP,
   ROOM_DEF,
+  SKILL_DEF,
   SPAWN_BASE_S,
   SPAWN_MIN_S,
   UNLOCK_AT,
 } from './tables'
-import type { Hospital, Room, RoomType, Tile, UnlockKey } from './types'
+import type { Hospital, Room, RoomType, SkillId, Tile, UnlockKey } from './types'
+
+export function isSkillId(key: string): key is SkillId {
+  return Object.prototype.hasOwnProperty.call(SKILL_DEF, key)
+}
 
 export function nextId(h: Hospital, prefix: string): string {
   h.nextId += 1
@@ -24,6 +29,7 @@ export function addFame(h: Hospital, delta: number) {
 }
 
 export function isUnlocked(h: Hospital, key: UnlockKey): boolean {
+  if (isSkillId(key)) return h.discharged >= SKILL_DEF[key].unlockAt
   return UNLOCK_AT.some((row) => h.discharged >= row.at && row.keys.includes(key))
 }
 

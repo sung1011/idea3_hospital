@@ -19,10 +19,14 @@ export type PatientState =
   | 'leave'
   | 'dead'
 
+export type SkillId = 'disinfect' | 'flush' | 'spray' | 'sustain'
+
+export type SkillShape = 'point' | 'line' | 'aoe' | 'hot'
+
 export type UnlockKey =
   | DiseaseId
   | RoomType
-  | 'cleaner'
+  | SkillId
   | 'compact'
   | 'dual'
   | 'er'
@@ -99,10 +103,20 @@ export type Doctor = {
   hireCost: number
 }
 
-export type Cleaner = {
-  id: string
-  roomId: string | null
-  hireCost: number
+export type Skill = {
+  id: SkillId
+  shape: SkillShape
+  cdS: number
+  cdLeft: number
+  unlocked: boolean
+}
+
+export type Hot = {
+  tile: Tile
+  remainS: number
+  everyS: number
+  amount: number
+  waitS: number
 }
 
 export type RollMode = 'rand' | 'always' | 'never'
@@ -112,7 +126,6 @@ export type Hospital = {
   fame: number
   nurses: number
   doctors: Doctor[]
-  cleaners: Cleaner[]
   rooms: Room[]
   patients: Patient[]
   lastTick: number
@@ -129,6 +142,8 @@ export type Hospital = {
   pendingEvent: EventId | null
   eventIn: number
   buffs: Buff[]
+  skills: Skill[]
+  hots: Hot[]
 }
 
 export type ActionResult = { ok: true } | { ok: false; reason: string }

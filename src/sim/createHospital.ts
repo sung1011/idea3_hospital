@@ -1,4 +1,5 @@
 import { randInt } from './rng'
+import { createSkills } from './skills'
 import { HIRE_DOCTOR, START_DOCTORS, START_FAME, START_MONEY, START_NURSES } from './tables'
 import type { Hospital } from './types'
 
@@ -12,7 +13,6 @@ export function createHospital(): Hospital {
       roomId: null,
       hireCost: HIRE_DOCTOR,
     })),
-    cleaners: [],
     rooms: [],
     patients: [],
     lastTick: Date.now(),
@@ -29,6 +29,8 @@ export function createHospital(): Hospital {
     pendingEvent: null,
     eventIn: 0,
     buffs: [],
+    skills: createSkills(0),
+    hots: [],
   }
   h.eventIn = randInt(h, 90, 150)
   return h

@@ -6,7 +6,6 @@ import { useGameStore } from './gameStore'
 
 const game = useGameStore()
 const room = computed(() => game.selectedRoom)
-const idleCleaner = computed(() => game.hospital.cleaners.find((c) => !c.roomId))
 </script>
 
 <template>
@@ -28,9 +27,6 @@ const idleCleaner = computed(() => game.hospital.cleaners.find((c) => !c.roomId)
         撤 {{ id }}
       </button>
       <span class="muted">工位 {{ room.doctorIds.length }}/{{ stationSlots(room) }}</span>
-    </div>
-    <div v-if="isUnlocked(game.hospital, 'cleaner')" class="row">
-      <button type="button" :disabled="!idleCleaner" @click="game.assignIdleCleaner()">派保洁</button>
     </div>
     <div class="row">
       <button type="button" :disabled="room.levelFlags.queuePlus2" @click="game.upgradeQueue()">

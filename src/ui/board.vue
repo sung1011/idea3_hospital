@@ -26,6 +26,14 @@ function canDrop(tile: Tile): boolean {
   return true
 }
 
+function isLineFrom(tile: Tile): boolean {
+  return !!(game.skillLineFrom && game.skillLineFrom.r === tile.r && game.skillLineFrom.c === tile.c)
+}
+
+function isHotTile(tile: Tile): boolean {
+  return game.hospital.hots.some((hot) => hot.tile.r === tile.r && hot.tile.c === tile.c)
+}
+
 function stain(room: Room | undefined): string {
   if (!room || room.pollution <= 0) return ''
   const a = Math.min(0.55, room.pollution / 160)
@@ -47,8 +55,8 @@ function actorStyle(p: { x: number; y: number }) {
 </script>
 
 <template>
-  <div class="wrap">
-    <div class="map">
+  <div class="wrap" @click.self="game.cancelSkill()">
+    <div class="map" @click.self="game.cancelSkill()">
       <div class="floor" :style="{ '--n': GRID_SIZE }">
         <button
           v-for="cell in cells"
@@ -58,8 +66,12 @@ function actorStyle(p: { x: number; y: number }) {
           :class="{
             doorCol: cell.c === DOOR_COL && cell.r === GRID_SIZE - 1,
             on: game.selectedRoom && roomOn(cell)?.id === game.selectedRoom.id,
-            pick: game.surgeryFirst && game.surgeryFirst.r === cell.r && game.surgeryFirst.c === cell.c,
+            pick:
+              (game.surgeryFirst && game.surgeryFirst.r === cell.r && game.surgeryFirst.c === cell.c) ||
+              isLineFrom(cell),
             drop: canDrop(cell),
+            aim: !!game.skillId,
+            hot: isHotTile(cell),
           }"
           @click="game.clickTile(cell)"
         >
@@ -73,7 +85,7 @@ function actorStyle(p: { x: number; y: number }) {
           <i class="dirt" :style="{ background: stain(roomOn(cell)) }" />
         </button>
       </div>
-      <div class="apron" :style="{ '--n': GRID_SIZE }">
+      <div class="apron" :style="{ '--n': GRID_SIZE }" @click="game.cancelSkill()">
         <span v-for="col in GRID_SIZE" :key="col" class="slot" :class="{ door: col - 1 === DOOR_COL }">
           <template v-if="col - 1 === DOOR_COL">正门</template>
         </span>
@@ -144,6 +156,28 @@ function actorStyle(p: { x: number; y: number }) {
   outline: 2px dashed #3d6b3a;
   outline-offset: -2px;
   cursor: pointer;
+}
+
+.tile.aim {
+  outline: 2px dashed #c4a35a;
+  outline-offset: -2px;
+  cursor: pointer;
+}
+
+.tile.aim.pick {
+  outline: 2px solid var(--iodine);
+}
+
+.tile.hot::after {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--iodine);
+  content: '';
 }
 
 .coord {

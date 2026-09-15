@@ -1,4 +1,4 @@
-import type { DiseaseId, EventId, RoomType, UnlockKey } from './types'
+import type { DiseaseId, EventId, RoomType, SkillId, SkillShape, UnlockKey } from './types'
 
 export const GRID_SIZE = 5
 
@@ -18,7 +18,6 @@ export const START_NURSES = 1
 export const MAX_FAME = 100
 export const MAX_FIELD = 20
 export const MAX_NURSES = 4
-export const MAX_CLEANERS = 3
 export const MAX_WAITING = 2
 export const MAX_SPECIALIST = 1
 
@@ -43,14 +42,12 @@ export const POLLUTE_DEAD = 15
 export const POLLUTE_SURGERY_FAIL = 10
 export const POLLUTE_INFECT = 8
 export const POLLUTE_SPREAD = 3
-export const POLLUTE_CLEAN = 8
 export const POLLUTE_SPREAD_AT = 40
 export const POLLUTE_CONVERT_AT = 70
 export const CONVERT_CHANCE = 0.1
 
 export const HIRE_DOCTOR = 100
 export const HIRE_NURSE = 80
-export const HIRE_CLEANER = 60
 export const UPGRADE_QUEUE = 50
 export const UPGRADE_DUAL = 90
 export const UPGRADE_COMPACT = 150
@@ -111,9 +108,29 @@ export const DISEASE: Record<DiseaseId, DiseaseDef> = {
   vip: { path: ['reception', 'diagnosis', 'treatment', 'pharmacy'], money: 40, fame: 4, weight: 1 },
 }
 
+export type SkillDef = {
+  shape: SkillShape
+  cdS: number
+  amount: number
+  unlockAt: number
+  label: string
+  length?: number
+  everyS?: number
+  durationS?: number
+}
+
+export const SKILL_ORDER: SkillId[] = ['disinfect', 'flush', 'spray', 'sustain']
+
+export const SKILL_DEF: Record<SkillId, SkillDef> = {
+  disinfect: { shape: 'point', cdS: 20, amount: 30, unlockAt: 15, label: '消毒' },
+  flush: { shape: 'line', cdS: 45, amount: 15, unlockAt: 30, label: '冲洗', length: 5 },
+  spray: { shape: 'aoe', cdS: 40, amount: 20, unlockAt: 50, label: '喷雾' },
+  sustain: { shape: 'hot', cdS: 30, amount: 8, unlockAt: 15, label: '持续消毒', everyS: 2, durationS: 10 },
+}
+
 export const UNLOCK_AT: { at: number; keys: UnlockKey[] }[] = [
   { at: 0, keys: ['cold', 'reception', 'treatment', 'pharmacy', 'diagnosis'] },
-  { at: 15, keys: ['ward', 'cleaner', 'waiting'] },
+  { at: 15, keys: ['ward', 'waiting'] },
   { at: 30, keys: ['fracture', 'surgery'] },
   { at: 50, keys: ['infectious'] },
   { at: 80, keys: ['vip', 'compact', 'er'] },

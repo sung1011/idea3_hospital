@@ -4,31 +4,24 @@ import { buildRoom, sellRoom, upgradeCompact, upgradeDual, upgradeQueue } from '
 import { cloneHospital } from '../sim/clone'
 import { createHospital } from '../sim/createHospital'
 import { chooseEvent } from '../sim/events'
-import { roomAt } from '../sim/query'
-import {
-  assignCleaner,
-  assignDoctor,
-  fireCleaner,
-  fireDoctor,
-  fireNurse,
-  hireCleaner,
-  hireDoctor,
-  hireNurse,
-  idleDoctors,
-  unassignDoctor,
-} from '../sim/staff'
+import { manhattan, roomAt } from '../sim/query'
+import { skillOf, useSkill } from '../sim/skills'
+import { assignDoctor, fireDoctor, fireNurse, hireDoctor, hireNurse, idleDoctors, unassignDoctor } from '../sim/staff'
 import { tick } from '../sim/tick'
-import type { ActionResult, Hospital, RoomType, Tile } from '../sim/types'
+import type { ActionResult, Hospital, RoomType, SkillId, Tile } from '../sim/types'
 
 export const useGameStore = defineStore('game', () => {
   const hospital = ref<Hospital>(createHospital())
   const buildType = ref<RoomType | null>(null)
   const surgeryFirst = ref<Tile | null>(null)
   const selectedRoomId = ref<string | null>(null)
+  const skillId = ref<SkillId | null>(null)
+  const skillLineFrom = ref<Tile | null>(null)
   const notice = ref('')
   let timer = 0
 
   const selectedRoom = computed(() => hospital.value.rooms.find((r) => r.id === selectedRoomId.value) ?? null)
+  const aimingSkill = computed(() => (skillId.value ? skillOf(hospital.value, skillId.value) ?? null : null))
 
   function apply(fn: (h: Hospital) => ActionResult): ActionResult {
     const next = cloneHospital(hospital.value)
@@ -36,6 +29,17 @@ export const useGameStore = defineStore('game', () => {
     if (result.ok) hospital.value = next
     notice.value = result.ok ? '' : result.reason
     return result
+  }
+
+  function clearSkillAim() {
+    skillId.value = null
+    skillLineFrom.value = null
+  }
+
+  function cancelSkill() {
+    if (!skillId.value) return
+    clearSkillAim()
+    notice.value = ''
   }
 
   function startClock() {
@@ -53,12 +57,59 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function pickBuild(type: RoomType) {
+    clearSkillAim()
     buildType.value = buildType.value === type ? null : type
     surgeryFirst.value = null
     selectedRoomId.value = null
   }
 
+  function pickSkill(id: SkillId) {
+    const skill = skillOf(hospital.value, id)
+    if (!skill || !skill.unlocked) {
+      notice.value = '尚未解锁'
+      return
+    }
+    if (skill.cdLeft > 0) {
+      notice.value = '冷却中'
+      return
+    }
+    if (skillId.value === id) {
+      cancelSkill()
+      return
+    }
+    skillId.value = id
+    skillLineFrom.value = null
+    buildType.value = null
+    surgeryFirst.value = null
+    selectedRoomId.value = null
+    notice.value = skill.shape === 'line' ? '先点一格，再点相邻格定方向' : '点地块施放，点空白取消'
+  }
+
   function clickTile(tile: Tile) {
+    if (skillId.value) {
+      const skill = skillOf(hospital.value, skillId.value)
+      if (!skill) {
+        cancelSkill()
+        return
+      }
+      if (skill.shape === 'line') {
+        if (!skillLineFrom.value) {
+          skillLineFrom.value = tile
+          notice.value = '再点相邻格定方向'
+          return
+        }
+        if (manhattan(skillLineFrom.value, tile) !== 1) {
+          cancelSkill()
+          return
+        }
+        apply((h) => useSkill(h, skill.id, skillLineFrom.value!, tile))
+        clearSkillAim()
+        return
+      }
+      apply((h) => useSkill(h, skill.id, tile))
+      clearSkillAim()
+      return
+    }
     const room = roomAt(hospital.value, tile)
     if (room) {
       selectedRoomId.value = room.id
@@ -95,10 +146,15 @@ export const useGameStore = defineStore('game', () => {
     surgeryFirst,
     selectedRoomId,
     selectedRoom,
+    skillId,
+    skillLineFrom,
+    aimingSkill,
     notice,
     startClock,
     stopClock,
     pickBuild,
+    pickSkill,
+    cancelSkill,
     clickTile,
     doSell,
     upgradeQueue: () => selectedRoomId.value && apply((h) => upgradeQueue(h, selectedRoomId.value!)),
@@ -106,10 +162,8 @@ export const useGameStore = defineStore('game', () => {
     upgradeCompact: () => selectedRoomId.value && apply((h) => upgradeCompact(h, selectedRoomId.value!)),
     hireDoctor: () => apply(hireDoctor),
     hireNurse: () => apply(hireNurse),
-    hireCleaner: () => apply(hireCleaner),
     fireNurse: () => apply(fireNurse),
     fireDoctor: (id: string) => apply((h) => fireDoctor(h, id)),
-    fireCleaner: (id: string) => apply((h) => fireCleaner(h, id)),
     assignIdleDoctor: () => {
       const roomId = selectedRoomId.value
       const idle = idleDoctors(hospital.value)[0]
@@ -120,15 +174,6 @@ export const useGameStore = defineStore('game', () => {
       apply((h) => assignDoctor(h, idle.id, roomId))
     },
     unassignDoctor: (id: string) => apply((h) => unassignDoctor(h, id)),
-    assignIdleCleaner: () => {
-      const roomId = selectedRoomId.value
-      const idle = hospital.value.cleaners.find((c) => !c.roomId)
-      if (!roomId || !idle) {
-        notice.value = idle ? '先点房间' : '没有空闲保洁'
-        return
-      }
-      apply((h) => assignCleaner(h, idle.id, roomId))
-    },
     chooseEvent: (side: 'left' | 'right') => apply((h) => chooseEvent(h, side)),
   }
 })
