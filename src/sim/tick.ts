@@ -2,6 +2,7 @@ import { cloneHospital } from './clone'
 import { stepEvents } from './events'
 import { stepHalls, stepNeeds, stepRooms, stepSpawn, stepWalk, stepWard, sweepGone } from './flow'
 import { stepPollution } from './pollution'
+import { stepSkills } from './skills'
 import type { Hospital } from './types'
 
 export function tick(hospital: Hospital): Hospital {
@@ -10,6 +11,7 @@ export function tick(hospital: Hospital): Hospital {
   h.lastTick = Date.now()
   stepEvents(h)
   stepPollution(h)
+  stepSkills(h)
   stepNeeds(h)
   stepWard(h)
   stepHalls(h)

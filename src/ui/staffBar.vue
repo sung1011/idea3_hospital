@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isUnlocked } from '../sim/query'
-import { HIRE_CLEANER, HIRE_DOCTOR, HIRE_NURSE, MAX_CLEANERS, MAX_NURSES } from '../sim/tables'
+import { HIRE_DOCTOR, HIRE_NURSE, MAX_NURSES } from '../sim/tables'
 import { useGameStore } from './gameStore'
 
 const game = useGameStore()
 const idleDoctor = computed(() => game.hospital.doctors.find((d) => !d.roomId))
-const idleCleaner = computed(() => game.hospital.cleaners.find((c) => !c.roomId))
 </script>
 
 <template>
@@ -19,11 +17,6 @@ const idleCleaner = computed(() => game.hospital.cleaners.find((c) => !c.roomId)
     <span>护士 {{ game.hospital.nurses }}/{{ MAX_NURSES }}</span>
     <button type="button" @click="game.hireNurse()">招 {{ HIRE_NURSE }}</button>
     <button type="button" @click="game.fireNurse()">解雇护士</button>
-    <template v-if="isUnlocked(game.hospital, 'cleaner')">
-      <span>保洁 {{ game.hospital.cleaners.length }}/{{ MAX_CLEANERS }}</span>
-      <button type="button" @click="game.hireCleaner()">招 {{ HIRE_CLEANER }}</button>
-      <button v-if="idleCleaner" type="button" @click="game.fireCleaner(idleCleaner.id)">解雇保洁</button>
-    </template>
   </div>
 </template>
 

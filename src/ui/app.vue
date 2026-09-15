@@ -6,6 +6,7 @@ import BuildBar from './buildBar.vue'
 import EventCard from './eventCard.vue'
 import { useGameStore } from './gameStore'
 import RoomPanel from './roomPanel.vue'
+import SkillBar from './skillBar.vue'
 import StaffBar from './staffBar.vue'
 import TopBar from './topBar.vue'
 
@@ -30,16 +31,23 @@ onUnmounted(() => {
     <TopBar />
     <StaffBar />
     <BuildBar />
+    <SkillBar />
     <p v-if="game.notice" class="notice">{{ game.notice }}</p>
     <Board />
     <RoomPanel />
     <p class="hint">
       {{
-        game.buildType === 'reception'
-          ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
-          : game.buildType === 'surgery' && !game.surgeryFirst
-            ? '手术室：先点第一格，再点相邻格。'
-            : '选房间类型，点空地建造。点已建房派人、升级或卖掉。'
+        game.skillId === 'flush' && !game.lineFirst
+          ? '冲洗：先点一格，再点相邻格定方向。点棋盘外空白取消。'
+          : game.skillId === 'flush'
+            ? '再点相邻一格定方向。点棋盘外空白取消。'
+            : game.skillId
+              ? '点地块施放。空地可点但没房无效。点棋盘外空白取消。'
+              : game.buildType === 'reception'
+                ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
+                : game.buildType === 'surgery' && !game.surgeryFirst
+                  ? '手术室：先点第一格，再点相邻格。'
+                  : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。'
       }}
     </p>
     <EventCard />

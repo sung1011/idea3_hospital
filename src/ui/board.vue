@@ -26,6 +26,12 @@ function canDrop(tile: Tile): boolean {
   return true
 }
 
+function canAim(tile: Tile): boolean {
+  if (!game.skillId) return false
+  if (game.lineFirst) return manhattan(game.lineFirst, tile) === 1
+  return true
+}
+
 function stain(room: Room | undefined): string {
   if (!room || room.pollution <= 0) return ''
   const a = Math.min(0.55, room.pollution / 160)
@@ -47,8 +53,8 @@ function actorStyle(p: { x: number; y: number }) {
 </script>
 
 <template>
-  <div class="wrap">
-    <div class="map">
+  <div class="wrap" @click.self="game.cancelTarget()">
+    <div class="map" @click.self="game.cancelTarget()">
       <div class="floor" :style="{ '--n': GRID_SIZE }">
         <button
           v-for="cell in cells"
@@ -58,8 +64,10 @@ function actorStyle(p: { x: number; y: number }) {
           :class="{
             doorCol: cell.c === DOOR_COL && cell.r === GRID_SIZE - 1,
             on: game.selectedRoom && roomOn(cell)?.id === game.selectedRoom.id,
-            pick: game.surgeryFirst && game.surgeryFirst.r === cell.r && game.surgeryFirst.c === cell.c,
-            drop: canDrop(cell),
+            pick:
+              (game.surgeryFirst && game.surgeryFirst.r === cell.r && game.surgeryFirst.c === cell.c) ||
+              (game.lineFirst && game.lineFirst.r === cell.r && game.lineFirst.c === cell.c),
+            drop: canDrop(cell) || canAim(cell),
           }"
           @click="game.clickTile(cell)"
         >
@@ -73,7 +81,7 @@ function actorStyle(p: { x: number; y: number }) {
           <i class="dirt" :style="{ background: stain(roomOn(cell)) }" />
         </button>
       </div>
-      <div class="apron" :style="{ '--n': GRID_SIZE }">
+      <div class="apron" :style="{ '--n': GRID_SIZE }" @click="game.cancelTarget()">
         <span v-for="col in GRID_SIZE" :key="col" class="slot" :class="{ door: col - 1 === DOOR_COL }">
           <template v-if="col - 1 === DOOR_COL">正门</template>
         </span>

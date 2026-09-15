@@ -60,9 +60,6 @@ export function sellRoom(h: Hospital, roomId: string): ActionResult {
     const doctor = h.doctors.find((d) => d.id === doctorId)
     if (doctor) doctor.roomId = null
   }
-  for (const cleaner of h.cleaners) {
-    if (cleaner.roomId === room.id) cleaner.roomId = null
-  }
   h.rooms = h.rooms.filter((r) => r.id !== roomId)
   for (const id of ids) {
     const p = h.patients.find((x) => x.id === id)

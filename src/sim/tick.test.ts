@@ -28,6 +28,9 @@ describe('createHospital', () => {
     expect(hospital.nurses).toBe(1)
     expect(hospital.doctors).toHaveLength(START_DOCTORS)
     expect(hospital.rooms).toHaveLength(0)
+    expect(hospital).not.toHaveProperty('cleaners')
+    expect(hospital.skills).toHaveLength(4)
+    expect(hospital.hots).toEqual([])
   })
 })
 

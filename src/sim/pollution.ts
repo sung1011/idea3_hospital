@@ -1,17 +1,10 @@
 import { roomsAdjacent } from './query'
 import { roll } from './rng'
-import { CONVERT_CHANCE, POLLUTE_CLEAN, POLLUTE_CONVERT_AT, POLLUTE_SPREAD, POLLUTE_SPREAD_AT } from './tables'
+import { CONVERT_CHANCE, POLLUTE_CONVERT_AT, POLLUTE_SPREAD, POLLUTE_SPREAD_AT } from './tables'
 import { rewriteInfectious } from './flow'
 import type { Hospital } from './types'
 
 export function stepPollution(h: Hospital) {
-  if (h.elapsedS > 0 && h.elapsedS % 5 === 0) {
-    for (const cleaner of h.cleaners) {
-      if (!cleaner.roomId) continue
-      const room = h.rooms.find((r) => r.id === cleaner.roomId)
-      if (room) room.pollution = Math.max(0, room.pollution - POLLUTE_CLEAN)
-    }
-  }
   if (h.elapsedS > 0 && h.elapsedS % 15 === 0) {
     const add = new Map<string, number>()
     for (const room of h.rooms) {
