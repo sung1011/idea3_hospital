@@ -1,10 +1,11 @@
 import { randInt } from './rng'
 import { createSkills } from './skills'
-import { HIRE_DOCTOR, START_DOCTORS, START_FAME, START_MONEY, START_NURSES } from './tables'
+import { HIRE_DOCTOR, PLAYER_ID, START_DOCTORS, START_FAME, START_MONEY, START_NURSES } from './tables'
 import type { Hospital } from './types'
 
-export function createHospital(): Hospital {
+export function createHospital(id = PLAYER_ID): Hospital {
   const h: Hospital = {
+    id,
     money: START_MONEY,
     fame: START_FAME,
     nurses: START_NURSES,
@@ -31,6 +32,7 @@ export function createHospital(): Hospital {
     buffs: [],
     skills: createSkills(),
     hots: [],
+    week: null,
   }
   h.eventIn = randInt(h, 90, 150)
   return h

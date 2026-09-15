@@ -9,7 +9,7 @@ import {
   SPAWN_MIN_S,
   UNLOCK_AT,
 } from './tables'
-import type { Hospital, Room, RoomType, Tile, UnlockKey } from './types'
+import type { Hospital, Patient, Room, RoomType, Tile, UnlockKey } from './types'
 
 export function nextId(h: Hospital, prefix: string): string {
   h.nextId += 1
@@ -124,7 +124,8 @@ export function spawnInterval(h: Hospital): number {
 }
 
 export function infectWeightMul(h: Hospital): number {
-  return h.buffs.reduce((m, b) => (b.kind === 'infectWeight' ? m * b.mul : m), 1)
+  const fromBuffs = h.buffs.reduce((m, b) => (b.kind === 'infectWeight' ? m * b.mul : m), 1)
+  return fromBuffs * (h.week?.infectMul ?? 1)
 }
 
 export function fieldCount(h: Hospital): number {
@@ -140,8 +141,20 @@ export function roomsOf(h: Hospital, type: RoomType): Room[] {
   return h.rooms.filter((r) => r.type === type)
 }
 
-export function pickOpenRoom(h: Hospital, type: RoomType, from: Tile): Room | undefined {
-  const open = roomsOf(h, type).filter((r) => r.queue.length < queueCap(r))
+export function canEnterSpecialist(room: Room, p: Patient): boolean {
+  if (room.type !== 'specialist') return false
+  if (!p.isSpecial) return false
+  if (p.recipeId && room.recipeId && room.recipeId !== p.recipeId) return false
+  if (p.recipeId === 'continue' && p.transferCount < 1) return false
+  return true
+}
+
+export function pickOpenRoom(h: Hospital, type: RoomType, from: Tile, p?: Patient): Room | undefined {
+  const open = roomsOf(h, type).filter((r) => {
+    if (r.queue.length >= queueCap(r)) return false
+    if (type === 'specialist' && p?.isSpecial && !canEnterSpecialist(r, p)) return false
+    return true
+  })
   open.sort((a, b) => manhattan(from, roomTile(a, from)) - manhattan(from, roomTile(b, from)))
   return open[0]
 }

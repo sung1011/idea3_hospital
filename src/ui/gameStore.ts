@@ -9,8 +9,8 @@ import { isUnlocked, manhattan, roomAt } from '../sim/query'
 import { SKILL_DEF, castSkill } from '../sim/skills'
 import { toggleEr } from '../sim/er'
 import { assignDoctor, fireDoctor, fireNurse, hireDoctor, hireNurse, idleDoctors, unassignDoctor } from '../sim/staff'
-import { tick } from '../sim/tick'
-import type { ActionResult, Hospital, RoomType, SkillId, Tile } from '../sim/types'
+import { advanceGame, chooseOffer, demoUnlockWeek, intercept, stepWeek } from '../sim/week'
+import type { ActionResult, Hospital, OfferChoice, RoomType, SkillId, Tile } from '../sim/types'
 import { loadHospital, saveHospital } from './saveGame'
 
 function worthShow(s: OfflineSummary): boolean {
@@ -65,7 +65,7 @@ export const useGameStore = defineStore('game', () => {
     catchUp()
     if (!timer) {
       timer = window.setInterval(() => {
-        hospital.value = tick(hospital.value)
+        hospital.value = advanceGame(hospital.value)
         persist()
       }, 1000)
     }
@@ -80,6 +80,12 @@ export const useGameStore = defineStore('game', () => {
       hospital.value = result.hospital
       if (worthShow(result.summary)) offlineSummary.value = result.summary
     }
+    if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('week') === '1') {
+      const next = cloneHospital(hospital.value)
+      demoUnlockWeek(next)
+      stepWeek(next, Date.now())
+      hospital.value = next
+    }
     persist()
   }
 
@@ -87,7 +93,7 @@ export const useGameStore = defineStore('game', () => {
     stopClock()
     boot()
     timer = window.setInterval(() => {
-      hospital.value = tick(hospital.value)
+      hospital.value = advanceGame(hospital.value)
       persist()
     }, 1000)
     document.addEventListener('visibilitychange', onVis)
@@ -241,6 +247,8 @@ export const useGameStore = defineStore('game', () => {
     },
     unassignDoctor: (id: string) => apply((h) => unassignDoctor(h, id)),
     chooseEvent: (side: 'left' | 'right') => apply((h) => chooseEvent(h, side)),
+    chooseOffer: (choice: OfferChoice) => apply((h) => chooseOffer(h, choice)),
+    intercept: () => apply(intercept),
     toggleEr: () => apply(toggleEr),
   }
 })

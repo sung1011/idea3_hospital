@@ -31,6 +31,8 @@ describe('createHospital', () => {
     expect(hospital).not.toHaveProperty('cleaners')
     expect(hospital.skills).toHaveLength(4)
     expect(hospital.hots).toEqual([])
+    expect(hospital.id).toBe('player')
+    expect(hospital.week).toBeNull()
   })
 })
 

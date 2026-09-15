@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { actualThroughput, isUnlocked, queueCap, stationSlots } from '../sim/query'
-import { ROOM_LABEL, UPGRADE_COMPACT, UPGRADE_DUAL, UPGRADE_QUEUE } from '../sim/tables'
+import { RECIPE, ROOM_LABEL, UPGRADE_COMPACT, UPGRADE_DUAL, UPGRADE_QUEUE } from '../sim/tables'
 import { useGameStore } from './gameStore'
 
 const game = useGameStore()
@@ -15,6 +15,7 @@ const room = computed(() => game.selectedRoom)
       <span>队 {{ room.queue.length }}/{{ queueCap(room) }}</span>
       <span>污 {{ Math.round(room.pollution) }}</span>
       <span v-if="room.type !== 'waiting'">吞吐 {{ actualThroughput(game.hospital, room).toFixed(1) }}</span>
+      <span v-if="room.type === 'specialist' && room.recipeId">配方 {{ RECIPE[room.recipeId].name }}</span>
     </header>
     <div class="row">
       <button type="button" @click="game.assignIdleDoctor()">派空闲医生</button>

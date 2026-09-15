@@ -8,7 +8,11 @@ export type RoomType =
   | 'specialist'
   | 'waiting'
 
-export type DiseaseId = 'cold' | 'fracture' | 'infectious' | 'vip'
+export type DiseaseId = 'cold' | 'fracture' | 'infectious' | 'vip' | 'special'
+
+export type RecipeId = 'isolate' | 'micro' | 'continue'
+
+export type OfferChoice = 'accept' | 'transfer' | 'recipe'
 
 export type PatientState =
   | 'walk'
@@ -67,7 +71,7 @@ export type Room = {
   pollution: number
   builtCost: number
   upgradeSpent: number
-  recipeId?: string
+  recipeId?: RecipeId
   progress: number
 }
 
@@ -95,6 +99,12 @@ export type Patient = {
   toHall: boolean
   toDoor: boolean
   blocked: boolean
+  isSpecial: boolean
+  specialId?: string
+  recipeId?: RecipeId
+  visitLog: string[]
+  transferCount: number
+  weekSettled?: boolean
 }
 
 export type Doctor = {
@@ -121,7 +131,41 @@ export type Hot = {
 
 export type RollMode = 'rand' | 'always' | 'never'
 
+export type CityPatient = {
+  specialId: string
+  recipeId: RecipeId
+  visitLog: string[]
+  transferCount: number
+  currentHospitalId: string | null
+  offerDeadline: number
+}
+
+export type WeekRank = {
+  id: string
+  score: number
+  place: number
+}
+
+export type WeekMatch = {
+  weekId: number
+  recipeId: RecipeId
+  startedAt: number
+  endsAt: number
+  nextSpawnAt: number
+  spawned: number
+  hospitalIds: string[]
+  scores: number[]
+  cityQueue: CityPatient[]
+  pendingOfferId: string | null
+  pendingRecipeId: RecipeId
+  infectMul: number
+  pendingInfectMul: number
+  rivals: Hospital[]
+  lastResult: WeekRank[] | null
+}
+
 export type Hospital = {
+  id: string
   money: number
   fame: number
   nurses: number
@@ -144,6 +188,7 @@ export type Hospital = {
   buffs: Buff[]
   skills: Skill[]
   hots: Hot[]
+  week: WeekMatch | null
 }
 
 export type ActionResult = { ok: true } | { ok: false; reason: string }

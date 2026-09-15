@@ -1,0 +1,281 @@
+import { describe, expect, it } from 'vitest'
+import { buildRoom } from './build'
+import { createHospital } from './createHospital'
+import { leavePatient } from './flow'
+import { settleOffline } from './offline'
+import { isUnlocked } from './query'
+import { assignDoctor } from './staff'
+import {
+  INTERCEPT_FAME,
+  OFFER_DEADLINE_MS,
+  RECIPE,
+  SPECIAL_FAIL_FEE,
+  SPECIAL_TRANSFER_FEE,
+  WEEK_MS,
+  WEEK_UNLOCK_AT,
+} from './tables'
+import { tick } from './tick'
+import type { Hospital, RecipeId } from './types'
+import {
+  admitSpecial,
+  canEnterSpecialist,
+  chooseOffer,
+  demoUnlockWeek,
+  ensureWeek,
+  findInterceptTarget,
+  intercept,
+  resolveSpecials,
+  stepWeek,
+  tickRivals,
+} from './week'
+
+function unlock(now = 0): Hospital {
+  const h = createHospital()
+  h.eventIn = 99999
+  h.rollMode = 'always'
+  demoUnlockWeek(h, now)
+  return h
+}
+
+function isolateLine(h: Hospital) {
+  h.discharged = Math.max(h.discharged, 100)
+  h.money = 2000
+  if (h.doctors.length < 5) {
+    h.doctors.push({ id: 'doc-5', roomId: null, hireCost: 100 })
+  }
+  buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+  buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])
+  buildRoom(h, 'ward', [{ r: 2, c: 2 }])
+  buildRoom(h, 'specialist', [{ r: 1, c: 2 }])
+  buildRoom(h, 'pharmacy', [{ r: 0, c: 2 }])
+  h.rooms.forEach((room, i) => assignDoctor(h, h.doctors[i].id, room.id))
+}
+
+function play(h: Hospital, n: number): Hospital {
+  if (h.week) {
+    h.week.nextSpawnAt = 1e15
+    h.week.endsAt = 1e15
+  }
+  let cur = h
+  for (let i = 0; i < n; i++) {
+    cur = tick(cur)
+    tickRivals(cur)
+  }
+  return cur
+}
+
+describe('week unlock', () => {
+  it('opens week / specialist / intercept at 100 discharges', () => {
+    const h = createHospital()
+    h.discharged = 99
+    expect(isUnlocked(h, 'week')).toBe(false)
+    expect(isUnlocked(h, 'specialist')).toBe(false)
+    expect(isUnlocked(h, 'intercept')).toBe(false)
+    h.discharged = WEEK_UNLOCK_AT
+    expect(isUnlocked(h, 'week')).toBe(true)
+    expect(isUnlocked(h, 'specialist')).toBe(true)
+    expect(isUnlocked(h, 'intercept')).toBe(true)
+  })
+})
+
+describe('recipes', () => {
+  it('lists three weekly recipes and continue needs a prior transfer', () => {
+    expect(RECIPE.isolate.path).toEqual(['reception', 'diagnosis', 'ward', 'specialist', 'pharmacy'])
+    expect(RECIPE.micro.path).toEqual(['reception', 'diagnosis', 'surgery', 'specialist', 'pharmacy'])
+    expect(RECIPE.continue.path).toEqual(['reception', 'diagnosis', 'specialist', 'treatment', 'pharmacy'])
+    expect(RECIPE.isolate.money).toBe(80)
+    expect(RECIPE.isolate.score).toBe(10)
+    expect(RECIPE.micro.score).toBe(14)
+    expect(RECIPE.continue.score).toBe(12)
+
+    const room = {
+      id: 's',
+      type: 'specialist' as const,
+      tiles: [{ r: 1, c: 2 }],
+      levelFlags: { queuePlus2: false, dualStation: false, compact: false },
+      doctorIds: [],
+      queue: [],
+      pollution: 0,
+      builtCost: 100,
+      upgradeSpent: 0,
+      progress: 0,
+      recipeId: 'continue' as RecipeId,
+    }
+    const p = {
+      isSpecial: true,
+      recipeId: 'continue' as const,
+      transferCount: 0,
+    }
+    expect(canEnterSpecialist(room, p as never)).toBe(false)
+    p.transferCount = 1
+    expect(canEnterSpecialist(room, p as never)).toBe(true)
+    room.recipeId = 'isolate'
+    expect(canEnterSpecialist(room, p as never)).toBe(false)
+  })
+})
+
+describe('offer choices', () => {
+  it('accepts into the player line', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    expect(chooseOffer(h, 'accept').ok).toBe(true)
+    expect(h.week?.pendingOfferId).toBeNull()
+    const p = h.patients.find((x) => x.isSpecial)
+    expect(p).toBeTruthy()
+    expect(p?.path).toEqual(RECIPE.isolate.path)
+    expect(p?.recipeId).toBe('isolate')
+  })
+
+  it('transfer pays 10 and lets an NPC grab', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const money = h.money
+    expect(chooseOffer(h, 'transfer').ok).toBe(true)
+    expect(h.money).toBe(money + SPECIAL_TRANSFER_FEE)
+    expect(h.patients.some((p) => p.isSpecial)).toBe(false)
+    const grabbed = h.week?.rivals.some((r) => r.patients.some((p) => p.isSpecial))
+    expect(grabbed).toBe(true)
+  })
+
+  it('recipe choice sets specialist and sends the patient away', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    expect(chooseOffer(h, 'recipe').ok).toBe(true)
+    const spec = h.rooms.find((r) => r.type === 'specialist')
+    expect(spec?.recipeId).toBe('isolate')
+    expect(h.week?.pendingRecipeId).toBe('isolate')
+    expect(h.patients.some((p) => p.isSpecial)).toBe(false)
+  })
+})
+
+describe('transfer and week score', () => {
+  it('cures an isolate special for money and week points', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    chooseOffer(h, 'accept')
+    h.fame = 0
+    h.patients = h.patients.filter((p) => p.isSpecial)
+    for (const room of h.rooms) {
+      room.queue = room.queue.filter((id) => h.patients.some((p) => p.id === id))
+    }
+    const money = h.money
+    const next = play(h, 280)
+    expect(next.week!.scores[0]).toBe(RECIPE.isolate.score)
+    expect(next.money).toBe(money + RECIPE.isolate.money)
+    expect(next.patients.some((p) => p.isSpecial && !p.weekSettled)).toBe(false)
+  })
+
+  it('leaves without a specialist and transfers to an NPC', () => {
+    const h = unlock(0)
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    assignDoctor(h, h.doctors[0].id, h.rooms[0].id)
+    stepWeek(h, 0)
+    chooseOffer(h, 'accept')
+    const p = h.patients.find((x) => x.isSpecial)!
+    leavePatient(h, p)
+    expect(h.money).toBeGreaterThanOrEqual(SPECIAL_FAIL_FEE)
+    resolveSpecials(h)
+    expect(h.week!.scores[0]).toBe(0)
+    const onNpc = h.week!.rivals.some((r) => r.patients.some((x) => x.isSpecial && x.specialId === p.specialId))
+    expect(onNpc).toBe(true)
+    const city = h.week!.cityQueue.find((c) => c.specialId === p.specialId)
+    expect(city?.transferCount).toBe(1)
+    expect(city?.visitLog).toContain(h.id)
+  })
+
+  it('wipes the city after four failed transfers', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    chooseOffer(h, 'accept')
+    const city = h.week!.cityQueue[0]
+    city.transferCount = 3
+    city.visitLog = [h.id, 'npc-isolate', 'npc-micro']
+    const p = h.patients.find((x) => x.isSpecial)!
+    const fame = h.fame
+    leavePatient(h, p)
+    resolveSpecials(h)
+    expect(h.week!.cityQueue.find((c) => c.specialId === city.specialId)).toBeUndefined()
+    expect(h.week!.pendingInfectMul).toBe(1.5)
+    expect(h.fame).toBe(fame - 6 - 8)
+  })
+})
+
+describe('intercept once', () => {
+  it('steals a live special from an NPC and cannot fire twice', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = null
+    const npc = h.week!.rivals[0]
+    admitSpecial(npc, city, h)
+    expect(findInterceptTarget(h)?.rival.id).toBe(npc.id)
+    const fame = h.fame
+    expect(intercept(h).ok).toBe(true)
+    expect(h.interceptUsed).toBe(true)
+    expect(h.fame).toBe(fame - INTERCEPT_FAME)
+    expect(h.patients.some((p) => p.isSpecial)).toBe(true)
+    expect(npc.patients.some((p) => p.isSpecial)).toBe(false)
+    expect(city.transferCount).toBe(0)
+    expect(city.visitLog).toContain(h.id)
+    expect(intercept(h)).toEqual({ ok: false, reason: '本周截诊已用' })
+  })
+
+  it('does not auto-intercept while offline', () => {
+    const h = unlock(1_000_000)
+    isolateLine(h)
+    stepWeek(h, 1_000_000)
+    const city = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = null
+    admitSpecial(h.week!.rivals[0], city, h)
+    h.lastTick = 1_000_000
+    h.interceptUsed = false
+    const result = settleOffline(h, 1_000_000 + 30_000)
+    expect(result.hospital.interceptUsed).toBe(false)
+  })
+})
+
+describe('week settlement', () => {
+  it('pays rank rewards, rotates recipe and resets intercept', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    h.interceptUsed = true
+    h.week!.scores = [20, 14, 10, 0]
+    h.week!.endsAt = 100
+    h.week!.nextSpawnAt = 1e15
+    const money = h.money
+    const fame = h.fame
+    stepWeek(h, 100)
+    expect(h.money).toBe(money + 150)
+    expect(h.fame).toBe(fame + 8)
+    expect(h.week!.recipeId).toBe('micro')
+    expect(h.week!.weekId).toBe(2)
+    expect(h.interceptUsed).toBe(false)
+    expect(h.week!.scores).toEqual([0, 0, 0, 0])
+    expect(h.rooms.find((r) => r.type === 'specialist')?.recipeId).toBe('micro')
+  })
+
+  it('times out an untouched offer as transfer', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    const money = h.money
+    stepWeek(h, OFFER_DEADLINE_MS + 1)
+    expect(h.week!.pendingOfferId).not.toBe(city.specialId)
+    expect(h.money).toBe(money + SPECIAL_TRANSFER_FEE)
+  })
+})
+
+describe('ensureWeek', () => {
+  it('does nothing before unlock', () => {
+    const h = createHospital()
+    ensureWeek(h, 0)
+    expect(h.week).toBeNull()
+  })
+})

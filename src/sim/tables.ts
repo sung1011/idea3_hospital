@@ -1,4 +1,4 @@
-import type { DiseaseId, EventId, RoomType, UnlockKey } from './types'
+import type { DiseaseId, EventId, RecipeId, RoomType, UnlockKey } from './types'
 
 export const GRID_SIZE = 5
 
@@ -84,6 +84,7 @@ export const DISEASE_LABEL: Record<DiseaseId, string> = {
   fracture: '骨折',
   infectious: '传染病',
   vip: 'VIP',
+  special: '特殊',
 }
 
 export type RoomDef = {
@@ -116,6 +117,7 @@ export const DISEASE: Record<DiseaseId, DiseaseDef> = {
   fracture: { path: ['reception', 'diagnosis', 'surgery', 'ward', 'pharmacy'], money: 28, fame: 2, weight: 1 },
   infectious: { path: ['reception', 'diagnosis', 'ward', 'treatment', 'pharmacy'], money: 22, fame: 2, weight: 1 },
   vip: { path: ['reception', 'diagnosis', 'treatment', 'pharmacy'], money: 40, fame: 4, weight: 1 },
+  special: { path: ['reception', 'diagnosis', 'specialist', 'pharmacy'], money: 0, fame: 0, weight: 0 },
 }
 
 export const UNLOCK_AT: { at: number; keys: UnlockKey[] }[] = [
@@ -138,6 +140,72 @@ export const BUILD_ORDER: RoomType[] = [
   'waiting',
   'specialist',
 ]
+
+export const WEEK_UNLOCK_AT = 100
+/** demo：10 分钟当一周。正式局按北京时间周一重置。 */
+export const WEEK_MS = 10 * 60 * 1000
+export const CITY_SPECIALS = 8
+export const SPECIAL_SPAWN_MIN_MS = 75_000
+export const SPECIAL_SPAWN_MAX_MS = 90_000
+/** demo：要约倒计时 2 分钟。正式局 2 小时。 */
+export const OFFER_DEADLINE_MS = 2 * 60 * 1000
+export const TRANSFER_CAP = 4
+export const SPECIAL_FAIL_FEE = 15
+export const SPECIAL_TRANSFER_FEE = 10
+export const FAME_SPECIAL_FAIL = 6
+export const FAME_CITY_FAIL = 8
+export const INTERCEPT_FAME = 8
+export const INTERCEPT_RAGE = 25
+export const INTERCEPT_POLLUTE = 20
+export const CITY_FAIL_INFECT_MUL = 1.5
+
+export const PLAYER_ID = 'player'
+export const NPC_IDS = ['npc-isolate', 'npc-micro', 'npc-continue'] as const
+export type NpcId = (typeof NPC_IDS)[number]
+
+export const HOSPITAL_LABEL: Record<string, string> = {
+  player: '本院',
+  'npc-isolate': '隔离院',
+  'npc-micro': '显微院',
+  'npc-continue': '续治院',
+}
+
+export const RECIPE_ORDER: RecipeId[] = ['isolate', 'micro', 'continue']
+
+export type RecipeDef = {
+  name: string
+  path: RoomType[]
+  money: number
+  score: number
+}
+
+export const RECIPE: Record<RecipeId, RecipeDef> = {
+  isolate: {
+    name: '隔离处置',
+    path: ['reception', 'diagnosis', 'ward', 'specialist', 'pharmacy'],
+    money: 80,
+    score: 10,
+  },
+  micro: {
+    name: '显微手术',
+    path: ['reception', 'diagnosis', 'surgery', 'specialist', 'pharmacy'],
+    money: 110,
+    score: 14,
+  },
+  continue: {
+    name: '跨院续治',
+    path: ['reception', 'diagnosis', 'specialist', 'treatment', 'pharmacy'],
+    money: 90,
+    score: 12,
+  },
+}
+
+export const WEEK_REWARDS = [
+  { money: 150, fame: 8 },
+  { money: 80, fame: 3 },
+  { money: 30, fame: 0 },
+  { money: 0, fame: 0 },
+] as const
 
 export const EVENT_IDS: EventId[] = ['infectAdmit', 'vipCut', 'inspect', 'vendor', 'raise', 'media']
 

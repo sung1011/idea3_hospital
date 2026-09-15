@@ -1,8 +1,9 @@
 import { cloneHospital } from './clone'
 import { backfillEvent } from './events'
-import { actualThroughput, queueCap } from './query'
+import { actualThroughput, isUnlocked, queueCap } from './query'
 import { OFFLINE_CAP_S, ROOM_LABEL } from './tables'
 import { applyTick } from './tick'
+import { stepWeek, tickRivals } from './week'
 import type { Hospital, Room, RoomType } from './types'
 
 export type OfflineSummary = {
@@ -89,7 +90,13 @@ function pickBlocked(
 export function settleOffline(hospital: Hospital, now = Date.now()): OfflineResult {
   const seconds = offlineSeconds(hospital.lastTick, now)
   if (seconds <= 0) {
-    return { hospital, summary: emptySummary(0) }
+    if (!isUnlocked(hospital, 'week') && !hospital.week) {
+      return { hospital, summary: emptySummary(0) }
+    }
+    const h = cloneHospital(hospital)
+    stepWeek(h, now)
+    h.lastTick = now
+    return { hospital: h, summary: emptySummary(0) }
   }
 
   const before = {
@@ -100,9 +107,13 @@ export function settleOffline(hospital: Hospital, now = Date.now()): OfflineResu
   const roomAcc = new Map<string, number>()
   const typeAcc = new Map<RoomType, number>()
   const h = cloneHospital(hospital)
+  const startedAt = hospital.lastTick
 
   for (let i = 0; i < seconds; i++) {
-    applyTick(h, { now, spawnEvents: false })
+    const t = startedAt + (i + 1) * 1000
+    applyTick(h, { now: t, spawnEvents: false })
+    tickRivals(h, { now: t, spawnEvents: false })
+    stepWeek(h, t)
     noteBlocked(h, roomAcc, typeAcc)
   }
 

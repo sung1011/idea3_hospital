@@ -106,7 +106,7 @@ const erOpen = computed(() => game.hospital.erOpen)
           :key="p.id"
           class="dot"
           :class="[p.disease, { erDot: p.isEr }]"
-          :title="`${DISEASE_LABEL[p.disease]}${p.isEr ? ' · 急诊' : ''} 怒${p.rage}`"
+          :title="`${DISEASE_LABEL[p.disease]}${p.isSpecial ? ' · 周赛' : ''}${p.isEr ? ' · 急诊' : ''} 怒${p.rage}`"
           :style="actorStyle(p)"
         />
       </div>
@@ -273,6 +273,10 @@ const erOpen = computed(() => game.hospital.erOpen)
 }
 .dot.vip {
   background: #e0b12a;
+}
+.dot.special {
+  background: #e8a317;
+  box-shadow: 0 0 0 2px #7a1f28;
 }
 
 .dot.erDot {

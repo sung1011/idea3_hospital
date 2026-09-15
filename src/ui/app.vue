@@ -11,6 +11,8 @@ import RoomPanel from './roomPanel.vue'
 import SkillBar from './skillBar.vue'
 import StaffBar from './staffBar.vue'
 import TopBar from './topBar.vue'
+import WeekBar from './weekBar.vue'
+import WeekOffer from './weekOffer.vue'
 
 const game = useGameStore()
 const running = computed(() => hasReception(game.hospital))
@@ -33,6 +35,7 @@ onUnmounted(() => {
     <TopBar />
     <StaffBar />
     <ErBar />
+    <WeekBar />
     <BuildBar />
     <SkillBar />
     <p v-if="game.notice" class="notice">{{ game.notice }}</p>
@@ -50,11 +53,12 @@ onUnmounted(() => {
                 ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
                 : game.buildType === 'surgery' && !game.surgeryFirst
                   ? '手术室：先点第一格，再点相邻格。'
-                  : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 后可开急诊口。'
+                  : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 开急诊，100 开周赛 / 专科 / 截诊。试玩加 ?week=1。'
       }}
     </p>
     <OfflineSummary />
-    <EventCard v-if="!game.offlineSummary" />
+    <EventCard v-if="!game.offlineSummary && !game.hospital.week?.pendingOfferId" />
+    <WeekOffer />
   </div>
 </template>
 

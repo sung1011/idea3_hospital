@@ -291,9 +291,9 @@ demo 改动：开局钱从 150 改为 5000，方便铺线试手感；医生从 1
 
 ## 12. 后台用的状态（主体）
 
-`Hospital`：money, fame, nurses, rooms[], patients[], unlocks, last_tick, er_open, intercept_used, skills[], hots[]
+`Hospital`：id, money, fame, nurses, rooms[], patients[], unlocks, last_tick, er_open, intercept_used, skills[], hots[], week（周赛状态，未解锁为 null）
 `Room`：id, type, tiles[], level_flags, doctor_ids[], queue[], pollution, built_cost, recipe_id（仅专科室）
-`Patient`：id, disease, path[], node, state, is_er, rage, stage, wait_s, x, y
+`Patient`：id, disease, path[], node, state, is_er, rage, stage, wait_s, x, y；特殊病人另有 is_special, special_id, recipe_id, visit_log, transfer_count
 `Skill`：id, shape=point|line|aoe|hot, cd_s, cd_left, unlocked
 `Hot`：tile, remain_s, every_s, amount
 `Tick`：1 秒。进场、走路、吞吐、污染、怒气、病情、技能 CD、HoT 都吃这一个钟。

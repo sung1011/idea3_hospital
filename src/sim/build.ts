@@ -46,6 +46,7 @@ export function buildRoom(h: Hospital, type: RoomType, tiles: Tile[]): ActionRes
     builtCost: def.cost,
     upgradeSpent: 0,
     progress: 0,
+    recipeId: type === 'specialist' ? (h.week?.pendingRecipeId ?? h.week?.recipeId) : undefined,
   })
   return { ok: true }
 }
@@ -73,7 +74,7 @@ export function sellRoom(h: Hospital, roomId: string): ActionResult {
 
 function rerouteAfterSell(h: Hospital, p: Patient, type: RoomType) {
   const from = { r: Math.round(p.y), c: Math.round(p.x) }
-  const next = pickOpenRoom(h, type, from)
+    const next = pickOpenRoom(h, type, from, p)
   if (next) {
     p.toHall = false
     p.toDoor = false

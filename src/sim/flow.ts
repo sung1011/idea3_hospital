@@ -23,6 +23,7 @@ import { rand, roll } from './rng'
 import {
   DISEASE,
   FAME_DEAD,
+  FAME_SPECIAL_FAIL,
   MAX_FIELD,
   POLLUTE_DEAD,
   POLLUTE_INFECT,
@@ -33,6 +34,8 @@ import {
   RAGE_LEAVE_SOFT,
   RAGE_QUEUE,
   RAGE_WALK,
+  RECIPE,
+  SPECIAL_FAIL_FEE,
   STAGE_EVERY_S,
   ER_SUCCESS_MUL,
   SUCCESS,
@@ -69,6 +72,9 @@ export function makePatient(h: Hospital, disease: DiseaseId, isEr = false): Pati
     toHall: false,
     toDoor: false,
     blocked: false,
+    isSpecial: false,
+    visitLog: [],
+    transferCount: 0,
   }
 }
 
@@ -112,7 +118,7 @@ export function routePatient(h: Hospital, p: Patient) {
     return
   }
   const from = patientTile(p)
-  const room = pickOpenRoom(h, p.path[p.node], from)
+  const room = pickOpenRoom(h, p.path[p.node], from, p)
   if (room) {
     startWalkTo(h, p, roomTile(room, from), room.id, false, false)
     return
@@ -179,10 +185,16 @@ export function arrivePatient(h: Hospital, p: Patient) {
 
 export function killPatient(h: Hospital, p: Patient) {
   pullFromRooms(h, p)
-  addFame(h, -FAME_DEAD)
+  if (p.isSpecial) {
+    addFame(h, -FAME_SPECIAL_FAIL)
+    h.money += SPECIAL_FAIL_FEE
+  } else {
+    addFame(h, -FAME_DEAD)
+  }
   h.deadCount += 1
   p.state = 'dead'
   p.blocked = false
+  p.weekSettled = false
   const from = patientTile(p)
   const room = p.inRoomId ? h.rooms.find((r) => r.id === p.inRoomId) : nearestRoom(h, from)
   if (room) room.pollution = Math.min(100, room.pollution + POLLUTE_DEAD)
@@ -190,6 +202,14 @@ export function killPatient(h: Hospital, p: Patient) {
 }
 
 export function dischargePatient(h: Hospital, p: Patient) {
+  if (p.isSpecial) {
+    const recipe = p.recipeId ? RECIPE[p.recipeId] : null
+    h.money += recipe?.money ?? 0
+    p.state = 'done'
+    p.inRoomId = null
+    p.weekSettled = false
+    return
+  }
   const def = DISEASE[p.disease]
   h.money += def.money
   addFame(h, def.fame)
@@ -281,7 +301,7 @@ export function stepHalls(h: Hospital) {
   guests.sort((a, b) => b.waitS - a.waitS)
   for (const p of guests) {
     const from = patientTile(p)
-    const room = pickOpenRoom(h, p.path[p.node], from)
+    const room = pickOpenRoom(h, p.path[p.node], from, p)
     if (!room) continue
     pullFromRooms(h, p)
     p.inRoomId = null
@@ -363,7 +383,12 @@ function treatOk(h: Hospital, room: Room, p: Patient): boolean {
 }
 
 export function sweepGone(h: Hospital) {
-  h.patients = h.patients.filter((p) => p.state !== 'done' && p.state !== 'leave' && p.state !== 'dead')
+  h.patients = h.patients.filter((p) => {
+    if (p.isSpecial && !p.weekSettled && (p.state === 'done' || p.state === 'leave' || p.state === 'dead')) {
+      return true
+    }
+    return p.state !== 'done' && p.state !== 'leave' && p.state !== 'dead'
+  })
 }
 
 export function walkDuration(h: Hospital, from: { r: number; c: number }, to: { r: number; c: number }): number {

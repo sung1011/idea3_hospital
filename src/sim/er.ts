@@ -17,6 +17,14 @@ export function applyErPath(p: Patient) {
   p.node = 0
 }
 
+/** 特殊病人只跳过前台，插到路径下一环队头，不跳专科。 */
+export function applySpecialErPath(p: Patient) {
+  if (p.path[0] === 'reception') {
+    p.path = p.path.slice(1)
+    p.node = 0
+  }
+}
+
 export function shouldMarkEr(h: Hospital): boolean {
   if (!h.erOpen) return false
   return rand(h) < ER_CHANCE
@@ -24,6 +32,7 @@ export function shouldMarkEr(h: Hospital): boolean {
 
 export function cutsToFront(p: Patient, roomType: RoomType): boolean {
   if (p.disease === 'vip') return true
+  if (p.isSpecial && p.isEr) return p.node === 0 && roomType === p.path[0]
   return p.isEr && roomType === erInsertType(p.disease)
 }
 

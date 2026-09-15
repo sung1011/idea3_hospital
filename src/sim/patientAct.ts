@@ -1,5 +1,5 @@
 import { addFame, nurseCoef } from './query'
-import { FAME_LEAVE, FAME_LEAVE_VIP, WALK_S_PER_TILE } from './tables'
+import { FAME_LEAVE, FAME_LEAVE_VIP, FAME_SPECIAL_FAIL, SPECIAL_FAIL_FEE, WALK_S_PER_TILE } from './tables'
 import type { Hospital, Patient, Room } from './types'
 
 export function refreshQueueStates(room: Room, h: Hospital) {
@@ -46,9 +46,15 @@ export function startWalkTo(
 
 export function leavePatient(h: Hospital, p: Patient) {
   pullFromRooms(h, p)
-  addFame(h, p.disease === 'vip' ? -FAME_LEAVE_VIP : -FAME_LEAVE)
+  if (p.isSpecial) {
+    addFame(h, -FAME_SPECIAL_FAIL)
+    h.money += SPECIAL_FAIL_FEE
+  } else {
+    addFame(h, p.disease === 'vip' ? -FAME_LEAVE_VIP : -FAME_LEAVE)
+  }
   h.leftCount += 1
   p.state = 'leave'
   p.blocked = false
   p.inRoomId = null
+  p.weekSettled = false
 }

@@ -1,5 +1,6 @@
 import { createSkills } from '../sim/skills'
-import type { Hospital } from '../sim/types'
+import { PLAYER_ID } from '../sim/tables'
+import type { Hospital, Patient } from '../sim/types'
 
 export const SAVE_KEY = 'idea3Hospital'
 
@@ -20,6 +21,14 @@ export function loadHospital(): Hospital | null {
     if (!Array.isArray(parsed.patients)) parsed.patients = []
     if (!Array.isArray(parsed.doctors)) parsed.doctors = []
     if (typeof parsed.erOpen !== 'boolean') parsed.erOpen = false
+    if (typeof parsed.interceptUsed !== 'boolean') parsed.interceptUsed = false
+    if (!parsed.id) parsed.id = PLAYER_ID
+    if (parsed.week === undefined) parsed.week = null
+    for (const p of parsed.patients as Patient[]) {
+      if (typeof p.isSpecial !== 'boolean') p.isSpecial = false
+      if (!Array.isArray(p.visitLog)) p.visitLog = []
+      if (typeof p.transferCount !== 'number') p.transferCount = 0
+    }
     return parsed
   } catch {
     return null
