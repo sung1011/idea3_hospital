@@ -21,7 +21,6 @@ export const useGameStore = defineStore('game', () => {
   let timer = 0
 
   const selectedRoom = computed(() => hospital.value.rooms.find((r) => r.id === selectedRoomId.value) ?? null)
-  const aimingSkill = computed(() => (skillId.value ? skillOf(hospital.value, skillId.value) ?? null : null))
 
   function apply(fn: (h: Hospital) => ActionResult): ActionResult {
     const next = cloneHospital(hospital.value)
@@ -81,8 +80,11 @@ export const useGameStore = defineStore('game', () => {
     skillLineFrom.value = null
     buildType.value = null
     surgeryFirst.value = null
-    selectedRoomId.value = null
     notice.value = skill.shape === 'line' ? '先点一格，再点相邻格定方向' : '点地块施放，点空白取消'
+  }
+
+  function selectRoomAt(tile: Tile) {
+    selectedRoomId.value = roomAt(hospital.value, tile)?.id ?? null
   }
 
   function clickTile(tile: Tile) {
@@ -102,12 +104,15 @@ export const useGameStore = defineStore('game', () => {
           cancelSkill()
           return
         }
-        apply((h) => useSkill(h, skill.id, skillLineFrom.value!, tile))
+        const from = skillLineFrom.value
+        apply((h) => useSkill(h, skill.id, from, tile))
         clearSkillAim()
+        selectRoomAt(from)
         return
       }
       apply((h) => useSkill(h, skill.id, tile))
       clearSkillAim()
+      selectRoomAt(tile)
       return
     }
     const room = roomAt(hospital.value, tile)
@@ -148,7 +153,6 @@ export const useGameStore = defineStore('game', () => {
     selectedRoom,
     skillId,
     skillLineFrom,
-    aimingSkill,
     notice,
     startClock,
     stopClock,

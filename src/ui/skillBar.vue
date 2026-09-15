@@ -63,8 +63,16 @@ function skill(id: SkillId) {
   background: #2a4a32;
 }
 
-.chip.locked,
-.chip.cool {
+.chip.locked {
   opacity: 0.35;
+}
+
+.chip.cool {
+  background: #152828;
+  color: #9aa8a8;
+}
+
+.chip.cool em {
+  color: var(--iodine);
 }
 </style>

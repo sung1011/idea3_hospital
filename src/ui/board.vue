@@ -81,6 +81,7 @@ function actorStyle(p: { x: number; y: number }) {
             <small v-if="roomOn(cell)!.type !== 'waiting' || roomOn(cell)!.queue.length"
               >{{ roomOn(cell)!.queue.length }}/{{ queueCap(roomOn(cell)!) }}</small
             >
+            <small v-if="roomOn(cell)!.pollution > 0">污{{ Math.round(roomOn(cell)!.pollution) }}</small>
           </span>
           <i class="dirt" :style="{ background: stain(roomOn(cell)) }" />
         </button>
@@ -172,11 +173,13 @@ function actorStyle(p: { x: number; y: number }) {
   position: absolute;
   right: 5px;
   top: 5px;
-  z-index: 1;
-  width: 6px;
-  height: 6px;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #1a1410;
   border-radius: 50%;
   background: var(--iodine);
+  box-shadow: 0 0 0 2px rgb(232 163 23 / 35%);
   content: '';
 }
 
