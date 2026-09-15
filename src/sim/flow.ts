@@ -1,7 +1,9 @@
+import { applyErPath, cutsToFront, shouldMarkEr } from './er'
 import {
   addFame,
   actualThroughput,
   doorTile,
+  erDoorTile,
   fieldCount,
   hasReception,
   infectWeightMul,
@@ -32,6 +34,7 @@ import {
   RAGE_QUEUE,
   RAGE_WALK,
   STAGE_EVERY_S,
+  ER_SUCCESS_MUL,
   SUCCESS,
   WALK_S_PER_TILE,
 } from './tables'
@@ -40,15 +43,15 @@ import type { DiseaseId, Hospital, Patient, Room } from './types'
 
 export { leavePatient, startWalkTo } from './patientAct'
 
-export function makePatient(h: Hospital, disease: DiseaseId): Patient {
-  const door = doorTile()
+export function makePatient(h: Hospital, disease: DiseaseId, isEr = false): Patient {
+  const door = isEr ? erDoorTile() : doorTile()
   return {
     id: nextId(h, 'p'),
     disease,
     path: [...DISEASE[disease].path],
     node: 0,
     state: 'walk',
-    isEr: false,
+    isEr,
     rage: 0,
     stage: 1,
     waitS: 0,
@@ -89,13 +92,15 @@ export function pickDisease(h: Hospital): DiseaseId | null {
   return pool[pool.length - 1].id
 }
 
-export function spawnPatient(h: Hospital, disease?: DiseaseId): Patient | null {
+export function spawnPatient(h: Hospital, disease?: DiseaseId, isEr?: boolean): Patient | null {
   if (h.fame <= 0) return null
   if (!hasReception(h)) return null
   if (fieldCount(h) >= MAX_FIELD) return null
   const id = disease ?? pickDisease(h)
   if (!id) return null
-  const p = makePatient(h, id)
+  const er = isEr ?? shouldMarkEr(h)
+  const p = makePatient(h, id, er)
+  if (er) applyErPath(p)
   h.patients.push(p)
   routePatient(h, p)
   return p
@@ -143,7 +148,7 @@ function enterRoom(h: Hospital, p: Patient, room: Room) {
     p.state = 'waitHall'
     return
   }
-  if (p.disease === 'vip') room.queue.unshift(p.id)
+  if (cutsToFront(p, room.type)) room.queue.unshift(p.id)
   else room.queue.push(p.id)
   refreshQueueStates(room, h)
 }
@@ -325,7 +330,7 @@ export function stepRooms(h: Hospital) {
 
 function finishInRoom(h: Hospital, room: Room, p: Patient) {
   const risky = room.type === 'treatment' || room.type === 'surgery' || room.type === 'specialist'
-  if (risky && !treatOk(h, room)) {
+  if (risky && !treatOk(h, room, p)) {
     if (room.type === 'surgery') room.pollution = Math.min(100, room.pollution + POLLUTE_SURGERY_FAIL)
     if ((room.type === 'surgery' || room.type === 'specialist') && p.stage >= 3) {
       room.queue = room.queue.filter((id) => id !== p.id)
@@ -344,11 +349,17 @@ function finishInRoom(h: Hospital, room: Room, p: Patient) {
   routePatient(h, p)
 }
 
-function treatOk(h: Hospital, room: Room): boolean {
-  if (room.type === 'treatment') return roll(h, SUCCESS.treatment)
-  if (room.type === 'surgery') return roll(h, SUCCESS.surgery)
-  if (room.type === 'specialist') return roll(h, SUCCESS.specialist)
-  return true
+export function treatChance(room: Room, p: Patient): number {
+  let chance = 1
+  if (room.type === 'treatment') chance = SUCCESS.treatment
+  else if (room.type === 'surgery') chance = SUCCESS.surgery
+  else if (room.type === 'specialist') chance = SUCCESS.specialist
+  if (p.isEr && (room.type === 'treatment' || room.type === 'surgery')) chance *= ER_SUCCESS_MUL
+  return chance
+}
+
+function treatOk(h: Hospital, room: Room, p: Patient): boolean {
+  return roll(h, treatChance(room, p))
 }
 
 export function sweepGone(h: Hospital) {

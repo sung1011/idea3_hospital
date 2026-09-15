@@ -7,6 +7,7 @@ import { chooseEvent } from '../sim/events'
 import { settleOffline, type OfflineSummary } from '../sim/offline'
 import { isUnlocked, manhattan, roomAt } from '../sim/query'
 import { SKILL_DEF, castSkill } from '../sim/skills'
+import { toggleEr } from '../sim/er'
 import { assignDoctor, fireDoctor, fireNurse, hireDoctor, hireNurse, idleDoctors, unassignDoctor } from '../sim/staff'
 import { tick } from '../sim/tick'
 import type { ActionResult, Hospital, RoomType, SkillId, Tile } from '../sim/types'
@@ -240,5 +241,6 @@ export const useGameStore = defineStore('game', () => {
     },
     unassignDoctor: (id: string) => apply((h) => unassignDoctor(h, id)),
     chooseEvent: (side: 'left' | 'right') => apply((h) => chooseEvent(h, side)),
+    toggleEr: () => apply(toggleEr),
   }
 })

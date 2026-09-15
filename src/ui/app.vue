@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { hasReception } from '../sim/query'
 import Board from './board.vue'
 import BuildBar from './buildBar.vue'
+import ErBar from './erBar.vue'
 import EventCard from './eventCard.vue'
 import { useGameStore } from './gameStore'
 import OfflineSummary from './offlineSummary.vue'
@@ -31,6 +32,7 @@ onUnmounted(() => {
     </header>
     <TopBar />
     <StaffBar />
+    <ErBar />
     <BuildBar />
     <SkillBar />
     <p v-if="game.notice" class="notice">{{ game.notice }}</p>
@@ -48,7 +50,7 @@ onUnmounted(() => {
                 ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
                 : game.buildType === 'surgery' && !game.surgeryFirst
                   ? '手术室：先点第一格，再点相邻格。'
-                  : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。'
+                  : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 后可开急诊口。'
       }}
     </p>
     <OfflineSummary />

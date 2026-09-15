@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { canReceiveAt } from '../sim/build'
-import { manhattan, queueCap } from '../sim/query'
-import { DISEASE_LABEL, DOOR_COL, GRID_SIZE, ROOM_LABEL } from '../sim/tables'
+import { isUnlocked, manhattan, queueCap } from '../sim/query'
+import { DISEASE_LABEL, DOOR_COL, ER_DOOR_COL, GRID_SIZE, ROOM_LABEL } from '../sim/tables'
 import type { Room, Tile } from '../sim/types'
 import { useGameStore } from './gameStore'
 
@@ -50,6 +50,9 @@ function actorStyle(p: { x: number; y: number }) {
     top: `${((p.y + 0.5) / (GRID_SIZE + 0.72)) * 100}%`,
   }
 }
+
+const erUnlocked = computed(() => isUnlocked(game.hospital, 'er'))
+const erOpen = computed(() => game.hospital.erOpen)
 </script>
 
 <template>
@@ -63,6 +66,7 @@ function actorStyle(p: { x: number; y: number }) {
           class="tile"
           :class="{
             doorCol: cell.c === DOOR_COL && cell.r === GRID_SIZE - 1,
+            erCol: erUnlocked && cell.c === ER_DOOR_COL && cell.r === GRID_SIZE - 1,
             on: game.selectedRoom && roomOn(cell)?.id === game.selectedRoom.id,
             pick:
               (game.surgeryFirst && game.surgeryFirst.r === cell.r && game.surgeryFirst.c === cell.c) ||
@@ -82,8 +86,18 @@ function actorStyle(p: { x: number; y: number }) {
         </button>
       </div>
       <div class="apron" :style="{ '--n': GRID_SIZE }" @click="game.cancelTarget()">
-        <span v-for="col in GRID_SIZE" :key="col" class="slot" :class="{ door: col - 1 === DOOR_COL }">
+        <span
+          v-for="col in GRID_SIZE"
+          :key="col"
+          class="slot"
+          :class="{
+            door: col - 1 === DOOR_COL,
+            er: erUnlocked && col - 1 === ER_DOOR_COL,
+            erShut: erUnlocked && !erOpen && col - 1 === ER_DOOR_COL,
+          }"
+        >
           <template v-if="col - 1 === DOOR_COL">正门</template>
+          <template v-else-if="erUnlocked && col - 1 === ER_DOOR_COL">{{ erOpen ? '急诊' : '急诊关' }}</template>
         </span>
       </div>
       <div class="actors">
@@ -91,8 +105,8 @@ function actorStyle(p: { x: number; y: number }) {
           v-for="p in actors"
           :key="p.id"
           class="dot"
-          :class="p.disease"
-          :title="`${DISEASE_LABEL[p.disease]} 怒${p.rage}`"
+          :class="[p.disease, { erDot: p.isEr }]"
+          :title="`${DISEASE_LABEL[p.disease]}${p.isEr ? ' · 急诊' : ''} 怒${p.rage}`"
           :style="actorStyle(p)"
         />
       </div>
@@ -136,6 +150,10 @@ function actorStyle(p: { x: number; y: number }) {
 
 .tile.doorCol {
   box-shadow: inset 0 -3px 0 var(--stamp);
+}
+
+.tile.erCol {
+  box-shadow: inset 0 -3px 0 var(--iodine);
 }
 
 .tile.on {
@@ -213,6 +231,22 @@ function actorStyle(p: { x: number; y: number }) {
   box-shadow: 2px 2px 0 #7a1f28;
 }
 
+.er {
+  color: #1a1410;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  background: var(--iodine);
+  box-shadow: 2px 2px 0 #8a5a10;
+}
+
+.er.erShut {
+  color: var(--paper);
+  background: #3d5555;
+  box-shadow: 2px 2px 0 #2a3c3c;
+}
+
 .actors {
   position: absolute;
   inset: 0 0 0 0;
@@ -239,5 +273,9 @@ function actorStyle(p: { x: number; y: number }) {
 }
 .dot.vip {
   background: #e0b12a;
+}
+
+.dot.erDot {
+  box-shadow: 0 0 0 2px var(--iodine);
 }
 </style>

@@ -19,6 +19,7 @@ export function loadHospital(): Hospital | null {
     if (!Array.isArray(parsed.buffs)) parsed.buffs = []
     if (!Array.isArray(parsed.patients)) parsed.patients = []
     if (!Array.isArray(parsed.doctors)) parsed.doctors = []
+    if (typeof parsed.erOpen !== 'boolean') parsed.erOpen = false
     return parsed
   } catch {
     return null

@@ -7,6 +7,15 @@ export const DOOR_COL = 2
 export const DOOR_ROW = GRID_SIZE
 export const DOOR = { r: DOOR_ROW, c: DOOR_COL }
 
+/** 急诊口贴底边外侧，正对第 1 列。不占 25 格。 */
+export const ER_DOOR_COL = 0
+export const ER_DOOR = { r: DOOR_ROW, c: ER_DOOR_COL }
+export const ER_UNLOCK_AT = 80
+export const ER_OPEN_COST = 80
+export const ER_CLOSE_REFUND = 40
+export const ER_CHANCE = 0.25
+export const ER_SUCCESS_MUL = 0.85
+
 /** 前台必须贴正门：底行、门所在列及其左右。 */
 export const RECEPTION_COLS = [DOOR_COL - 1, DOOR_COL, DOOR_COL + 1]
 

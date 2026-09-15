@@ -1,5 +1,6 @@
 import {
   DOOR,
+  ER_DOOR,
   GRID_SIZE,
   NURSE_WALK_FLOOR,
   NURSE_WALK_STEP,
@@ -160,4 +161,8 @@ export function roomsAdjacent(a: Room, b: Room): boolean {
 
 export function doorTile(): Tile {
   return { ...DOOR }
+}
+
+export function erDoorTile(): Tile {
+  return { ...ER_DOOR }
 }
