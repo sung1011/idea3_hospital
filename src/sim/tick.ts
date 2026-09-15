@@ -5,11 +5,16 @@ import { stepPollution } from './pollution'
 import { stepSkills } from './skills'
 import type { Hospital } from './types'
 
-export function tick(hospital: Hospital): Hospital {
-  const h = cloneHospital(hospital)
+export type TickOpts = {
+  now?: number
+  /** 挂机追 tick 时不发事件卡，只走 buff / 倒计时。默认 true。 */
+  spawnEvents?: boolean
+}
+
+export function applyTick(h: Hospital, opts: TickOpts = {}): void {
   h.elapsedS += 1
-  h.lastTick = Date.now()
-  stepEvents(h)
+  h.lastTick = opts.now ?? Date.now()
+  stepEvents(h, { spawn: opts.spawnEvents !== false })
   stepPollution(h)
   stepSkills(h)
   stepNeeds(h)
@@ -19,11 +24,16 @@ export function tick(hospital: Hospital): Hospital {
   stepWalk(h)
   stepSpawn(h)
   sweepGone(h)
+}
+
+export function tick(hospital: Hospital, opts?: TickOpts): Hospital {
+  const h = cloneHospital(hospital)
+  applyTick(h, opts)
   return h
 }
 
-export function ticks(hospital: Hospital, n: number): Hospital {
-  let h = hospital
-  for (let i = 0; i < n; i++) h = tick(h)
+export function ticks(hospital: Hospital, n: number, opts?: TickOpts): Hospital {
+  const h = cloneHospital(hospital)
+  for (let i = 0; i < n; i++) applyTick(h, opts)
   return h
 }

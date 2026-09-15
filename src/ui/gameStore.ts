@@ -4,14 +4,21 @@ import { buildRoom, sellRoom, upgradeCompact, upgradeDual, upgradeQueue } from '
 import { cloneHospital } from '../sim/clone'
 import { createHospital } from '../sim/createHospital'
 import { chooseEvent } from '../sim/events'
+import { settleOffline, type OfflineSummary } from '../sim/offline'
 import { isUnlocked, manhattan, roomAt } from '../sim/query'
 import { SKILL_DEF, castSkill } from '../sim/skills'
 import { assignDoctor, fireDoctor, fireNurse, hireDoctor, hireNurse, idleDoctors, unassignDoctor } from '../sim/staff'
 import { tick } from '../sim/tick'
 import type { ActionResult, Hospital, RoomType, SkillId, Tile } from '../sim/types'
+import { loadHospital, saveHospital } from './saveGame'
+
+function worthShow(s: OfflineSummary): boolean {
+  return s.seconds >= 5 || s.done > 0 || s.left > 0 || s.dead > 0
+}
 
 export const useGameStore = defineStore('game', () => {
   const hospital = ref<Hospital>(createHospital())
+  const offlineSummary = ref<OfflineSummary | null>(null)
   const buildType = ref<RoomType | null>(null)
   const surgeryFirst = ref<Tile | null>(null)
   const selectedRoomId = ref<string | null>(null)
@@ -19,22 +26,72 @@ export const useGameStore = defineStore('game', () => {
   const lineFirst = ref<Tile | null>(null)
   const notice = ref('')
   let timer = 0
+  let booted = false
 
   const selectedRoom = computed(() => hospital.value.rooms.find((r) => r.id === selectedRoomId.value) ?? null)
 
   function apply(fn: (h: Hospital) => ActionResult): ActionResult {
     const next = cloneHospital(hospital.value)
     const result = fn(next)
-    if (result.ok) hospital.value = next
+    if (result.ok) {
+      hospital.value = next
+      saveHospital(hospital.value)
+    }
     notice.value = result.ok ? '' : result.reason
     return result
   }
 
+  function catchUp() {
+    const result = settleOffline(hospital.value)
+    hospital.value = result.hospital
+    if (worthShow(result.summary)) offlineSummary.value = result.summary
+    saveHospital(hospital.value)
+  }
+
+  function persist() {
+    saveHospital(hospital.value)
+  }
+
+  function onVis() {
+    if (document.visibilityState === 'hidden') {
+      if (timer) {
+        window.clearInterval(timer)
+        timer = 0
+      }
+      persist()
+      return
+    }
+    catchUp()
+    if (!timer) {
+      timer = window.setInterval(() => {
+        hospital.value = tick(hospital.value)
+        persist()
+      }, 1000)
+    }
+  }
+
+  function boot() {
+    if (booted) return
+    booted = true
+    const saved = loadHospital()
+    if (saved) {
+      const result = settleOffline(saved)
+      hospital.value = result.hospital
+      if (worthShow(result.summary)) offlineSummary.value = result.summary
+    }
+    persist()
+  }
+
   function startClock() {
     stopClock()
+    boot()
     timer = window.setInterval(() => {
       hospital.value = tick(hospital.value)
+      persist()
     }, 1000)
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('pagehide', persist)
+    window.addEventListener('beforeunload', persist)
   }
 
   function stopClock() {
@@ -42,6 +99,13 @@ export const useGameStore = defineStore('game', () => {
       window.clearInterval(timer)
       timer = 0
     }
+    document.removeEventListener('visibilitychange', onVis)
+    window.removeEventListener('pagehide', persist)
+    window.removeEventListener('beforeunload', persist)
+  }
+
+  function dismissOfflineSummary() {
+    offlineSummary.value = null
   }
 
   function clearSkill() {
@@ -142,6 +206,7 @@ export const useGameStore = defineStore('game', () => {
 
   return {
     hospital,
+    offlineSummary,
     buildType,
     surgeryFirst,
     selectedRoomId,
@@ -151,6 +216,7 @@ export const useGameStore = defineStore('game', () => {
     notice,
     startClock,
     stopClock,
+    dismissOfflineSummary,
     pickBuild,
     pickSkill,
     clickTile,

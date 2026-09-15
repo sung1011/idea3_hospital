@@ -5,6 +5,7 @@ import Board from './board.vue'
 import BuildBar from './buildBar.vue'
 import EventCard from './eventCard.vue'
 import { useGameStore } from './gameStore'
+import OfflineSummary from './offlineSummary.vue'
 import RoomPanel from './roomPanel.vue'
 import SkillBar from './skillBar.vue'
 import StaffBar from './staffBar.vue'
@@ -50,7 +51,8 @@ onUnmounted(() => {
                   : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。'
       }}
     </p>
-    <EventCard />
+    <OfflineSummary />
+    <EventCard v-if="!game.offlineSummary" />
   </div>
 </template>
 

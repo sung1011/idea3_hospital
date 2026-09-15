@@ -17,6 +17,7 @@ export const START_NURSES = 1
 
 export const MAX_FAME = 100
 export const MAX_FIELD = 20
+export const OFFLINE_CAP_S = 8 * 60 * 60
 export const MAX_NURSES = 4
 export const MAX_WAITING = 2
 export const MAX_SPECIALIST = 1
