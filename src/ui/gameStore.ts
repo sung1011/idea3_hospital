@@ -36,17 +36,24 @@ export const useGameStore = defineStore('game', () => {
     const next = cloneHospital(hospital.value)
     const result = fn(next)
     if (result.ok) {
+      const fameWas = hospital.value.fame
       hospital.value = next
       saveHospital(hospital.value)
+      notice.value = fameWas > 0 && next.fame <= 0 ? '口碑到 0，日常进场停了' : ''
+    } else {
+      notice.value = result.reason
     }
-    notice.value = result.ok ? '' : result.reason
     return result
   }
 
   function catchUp() {
+    const fameWas = hospital.value.fame
     const result = settleOffline(hospital.value)
     hospital.value = result.hospital
     if (worthShow(result.summary)) offlineSummary.value = result.summary
+    if (fameWas > 0 && hospital.value.fame <= 0) {
+      notice.value = '口碑到 0，日常进场停了'
+    }
     saveHospital(hospital.value)
   }
 
@@ -65,7 +72,11 @@ export const useGameStore = defineStore('game', () => {
   function runClock() {
     if (timer) return
     timer = window.setInterval(() => {
+      const fameWas = hospital.value.fame
       hospital.value = advanceGame(hospital.value)
+      if (fameWas > 0 && hospital.value.fame <= 0) {
+        notice.value = '口碑到 0，日常进场停了'
+      }
       persist()
     }, 1000)
   }
@@ -217,11 +228,12 @@ export const useGameStore = defineStore('game', () => {
     if (buildType.value === 'surgery') {
       if (!surgeryFirst.value) {
         surgeryFirst.value = tile
-        notice.value = '再点相邻一格'
+        notice.value = '再点相邻一格。点错保留第一格，Esc 或「取消指定」取消。'
         return
       }
-      apply((h) => buildRoom(h, 'surgery', [surgeryFirst.value!, tile]))
-      surgeryFirst.value = null
+      const result = apply((h) => buildRoom(h, 'surgery', [surgeryFirst.value!, tile]))
+      if (result.ok) surgeryFirst.value = null
+      else notice.value = result.reason
       return
     }
     apply((h) => buildRoom(h, buildType.value!, [tile]))

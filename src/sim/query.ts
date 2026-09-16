@@ -128,7 +128,7 @@ export function isVacant(h: Hospital, roomId: string): boolean {
 export function actualThroughput(h: Hospital, room: Room): number {
   if (room.type === 'waiting') return 0
   if (isVacant(h, room.id)) return 0
-  const stations = room.doctorIds.length
+  const stations = new Set(room.doctorIds).size
   if (stations === 0) return 0
   return (
     ROOM_DEF[room.type].throughput *

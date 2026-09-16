@@ -95,6 +95,13 @@ export function sellRoom(h: Hospital, roomId: string): ActionResult {
     p.toRoomId = null
     rerouteAfterSell(h, p, room.type)
   }
+  for (const p of h.patients) {
+    if (p.inRoomId !== roomId) continue
+    if (p.state === 'done' || p.state === 'leave' || p.state === 'dead') continue
+    p.inRoomId = null
+    p.rage = Math.min(100, p.rage + 20)
+    rerouteAfterSell(h, p, room.type)
+  }
   return { ok: true }
 }
 

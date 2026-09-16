@@ -11,7 +11,7 @@ const unlocked = computed(() => isUnlocked(game.hospital, 'week'))
 const week = computed(() => game.hospital.week)
 const board = computed(() => weekBoard(game.hospital))
 const remain = computed(() => {
-  const ms = weekRemainingMs(game.hospital)
+  const ms = weekRemainingMs(game.hospital, game.hospital.lastTick)
   const s = Math.ceil(ms / 1000)
   const m = Math.floor(s / 60)
   const sec = s % 60

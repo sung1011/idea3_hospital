@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RECIPE } from '../sim/tables'
+import { fieldCount } from '../sim/query'
+import { MAX_FIELD, RECIPE } from '../sim/tables'
 import { pendingOffer } from '../sim/week'
 import { useGameStore } from './gameStore'
 
@@ -9,12 +10,13 @@ const city = computed(() => pendingOffer(game.hospital))
 const name = computed(() => (city.value ? RECIPE[city.value.recipeId].name : ''))
 const deadline = computed(() => {
   if (!city.value) return ''
-  const s = Math.max(0, Math.ceil((city.value.offerDeadline - Date.now()) / 1000))
+  const s = Math.max(0, Math.ceil((city.value.offerDeadline - game.hospital.lastTick) / 1000))
   const m = Math.floor(s / 60)
   const sec = s % 60
   return `${m}:${String(sec).padStart(2, '0')}`
 })
 const hasSpecialist = computed(() => game.hospital.rooms.some((r) => r.type === 'specialist'))
+const fieldFull = computed(() => fieldCount(game.hospital) >= MAX_FIELD)
 </script>
 
 <template>
@@ -22,13 +24,21 @@ const hasSpecialist = computed(() => game.hospital.rooms.some((r) => r.type === 
     <div class="card">
       <p class="kicker">城市特殊病人</p>
       <h2>本市出现了「{{ name }}」病人。</h2>
-      <p class="sub">必须选一项。要约还剩 {{ deadline }}（demo 2 分钟），超时按转出处理。本周大约每 80 秒来一个。</p>
+      <p class="sub">必须选一项。要约还剩 {{ deadline }}（demo 2 分钟），超时按转出处理。本周第一个立刻出现，之后约每 75–90 秒一个。</p>
       <div class="choices">
-        <button type="button" autofocus @click="game.chooseOffer('accept')">
+        <button
+          type="button"
+          :disabled="fieldFull"
+          :title="fieldFull ? '场上已满，接不进来' : ''"
+          autofocus
+          @click="game.chooseOffer('accept')"
+        >
           {{
-            city.recipeId === 'continue'
-              ? '接诊。跨院续治必须先转过一次才能进专科，第一家多半走不通，治好才拿钱和周分。'
-              : '接诊。按本周配方走产线，治好拿钱和周分。'
+            fieldFull
+              ? '场上已满，接不进来。可转出或改配方。'
+              : city.recipeId === 'continue'
+                ? '接诊。跨院续治必须先转过一次才能进专科，第一家多半走不通，治好才拿钱和周分。'
+                : '接诊。按本周配方走产线，治好拿钱和周分。'
           }}
         </button>
         <button type="button" @click="game.chooseOffer('transfer')">转出。拿 10 钱情报费，对手去抢。</button>
@@ -96,5 +106,9 @@ button {
   font: inherit;
   font-size: 14px;
   text-align: left;
+}
+
+button:disabled {
+  opacity: 0.45;
 }
 </style>

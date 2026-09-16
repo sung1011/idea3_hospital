@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRoom, sellRoom, upgradeQueue } from './build'
 import { createHospital } from './createHospital'
 import { makePatient } from './flow'
+import { occupied } from './query'
 import { START_MONEY } from './tables'
 
 describe('sell money and reroutes', () => {
@@ -61,6 +62,46 @@ describe('sell money and reroutes', () => {
     expect(sellRoom(h, room.id).ok).toBe(true)
     expect(p.toRoomId).not.toBe(room.id)
     expect(p.state).toBe('leave')
+  })
+})
+
+describe('surgery two tiles', () => {
+  it('sells both tiles and reroutes a treating patient', () => {
+    const h = createHospital()
+    h.discharged = 30
+    expect(buildRoom(h, 'surgery', [{ r: 2, c: 1 }, { r: 2, c: 2 }]).ok).toBe(true)
+    expect(occupied(h).size).toBe(2)
+    const room = h.rooms[0]
+    const p = makePatient(h, 'fracture')
+    p.node = 2
+    p.state = 'treat'
+    p.inRoomId = room.id
+    p.x = 1
+    p.y = 2
+    h.patients.push(p)
+    room.queue.push(p.id)
+    expect(sellRoom(h, room.id).ok).toBe(true)
+    expect(occupied(h).size).toBe(0)
+    expect(p.inRoomId).toBeNull()
+    expect(p.state).toBe('leave')
+  })
+
+  it('sweeps a treating patient who is no longer in the queue', () => {
+    const h = createHospital()
+    h.discharged = 30
+    buildRoom(h, 'surgery', [{ r: 2, c: 1 }, { r: 2, c: 2 }])
+    const room = h.rooms[0]
+    const p = makePatient(h, 'fracture')
+    p.node = 2
+    p.state = 'treat'
+    p.inRoomId = room.id
+    p.x = 2
+    p.y = 2
+    h.patients.push(p)
+    expect(sellRoom(h, room.id).ok).toBe(true)
+    expect(p.inRoomId).toBeNull()
+    expect(p.state).toBe('leave')
+    expect(p.rage).toBe(20)
   })
 })
 

@@ -102,6 +102,41 @@ describe('migrateHospital', () => {
     expect(h!.week).toBeNull()
   })
 
+  it('reconciles doctorIds with doctor.roomId and drops duplicates', () => {
+    const h = migrateHospital(
+      {
+        lastTick: 1000,
+        discharged: 120,
+        rooms: [
+          {
+            id: 'treat',
+            type: 'treatment',
+            tiles: [{ r: 2, c: 2 }],
+            levelFlags: { dualStation: true },
+            doctorIds: ['doc-1', 'doc-1', 'ghost'],
+          },
+          {
+            id: 'diag',
+            type: 'diagnosis',
+            tiles: [{ r: 3, c: 2 }],
+            doctorIds: ['doc-1'],
+          },
+        ],
+        doctors: [
+          { id: 'doc-1', roomId: 'treat' },
+          { id: 'doc-2', roomId: 'missing' },
+        ],
+      },
+      1000,
+    )!
+    const treat = h.rooms.find((r) => r.id === 'treat')!
+    const diag = h.rooms.find((r) => r.id === 'diag')!
+    expect(treat.doctorIds).toEqual(['doc-1'])
+    expect(diag.doctorIds).toEqual([])
+    expect(h.doctors.find((d) => d.id === 'doc-1')?.roomId).toBe('treat')
+    expect(h.doctors.find((d) => d.id === 'doc-2')?.roomId).toBeNull()
+  })
+
   it('backfills a specialist recipe from the week so old saves can enter', () => {
     const h = migrateHospital(
       {

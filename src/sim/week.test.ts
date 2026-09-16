@@ -3,10 +3,13 @@ import { buildRoom } from './build'
 import { createHospital } from './createHospital'
 import { leavePatient, makePatient, routePatient } from './flow'
 import { settleOffline } from './offline'
-import { isUnlocked } from './query'
+import { doorTile, fieldCount, isUnlocked } from './query'
 import { assignDoctor } from './staff'
 import {
   INTERCEPT_FAME,
+  INTERCEPT_POLLUTE,
+  INTERCEPT_RAGE,
+  MAX_FIELD,
   OFFER_DEADLINE_MS,
   RECIPE,
   SPECIAL_FAIL_FEE,
@@ -131,6 +134,21 @@ describe('offer choices', () => {
     expect(p?.recipeId).toBe('isolate')
   })
 
+  it('keeps the offer when accept is blocked by a full field', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    for (let i = 0; i < MAX_FIELD; i++) {
+      const extra = makePatient(h, 'cold')
+      extra.state = 'walk'
+      h.patients.push(extra)
+    }
+    expect(chooseOffer(h, 'accept')).toEqual({ ok: false, reason: '场上已满，接不进来' })
+    expect(h.week!.pendingOfferId).toBe(city.specialId)
+    expect(h.patients.some((p) => p.isSpecial)).toBe(false)
+  })
+
   it('transfer pays 10 and lets an NPC grab', () => {
     const h = unlock(0)
     isolateLine(h)
@@ -243,6 +261,69 @@ describe('intercept once', () => {
     p.state = 'walk'
     expect(findInterceptTarget(h)).toBeNull()
     expect(intercept(h)).toEqual({ ok: false, reason: '对手手里没有可截的特殊病人' })
+  })
+
+  it('places the stolen patient at the player door and applies dirt', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = null
+    const npc = h.week!.rivals[0]
+    admitSpecial(npc, city, h)
+    const stolen = npc.patients.find((x) => x.isSpecial)!
+    stolen.x = 0
+    stolen.y = 0
+    stolen.rage = 10
+    const doorAdj = h.rooms.find((r) => r.tiles.some((t) => t.r === 4 && t.c === 2))!
+    doorAdj.pollution = 0
+    const npcMoney = npc.money
+    expect(intercept(h).ok).toBe(true)
+    const p = h.patients.find((x) => x.isSpecial)!
+    const door = doorTile()
+    expect(p.x).toBe(door.c)
+    expect(p.y).toBe(door.r)
+    expect(p.rage).toBe(10 + INTERCEPT_RAGE)
+    expect(doorAdj.pollution).toBe(INTERCEPT_POLLUTE)
+    expect(npc.money).toBe(npcMoney + SPECIAL_FAIL_FEE)
+  })
+
+  it('cannot intercept when the field is already full', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = null
+    admitSpecial(h.week!.rivals[0], city, h)
+    for (let i = 0; i < MAX_FIELD; i++) {
+      const extra = makePatient(h, 'cold')
+      extra.state = 'walk'
+      h.patients.push(extra)
+    }
+    expect(fieldCount(h)).toBeGreaterThanOrEqual(MAX_FIELD)
+    expect(intercept(h)).toEqual({ ok: false, reason: '场上已满，截不进来' })
+    expect(h.interceptUsed).toBe(false)
+    expect(h.week!.rivals[0].patients.some((p) => p.isSpecial)).toBe(true)
+  })
+
+  it('skips a city-logged special and takes the next stealable in the same hospital', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const first = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = null
+    h.week!.nextSpawnAt = 0
+    stepWeek(h, 1)
+    const second = h.week!.cityQueue[1]
+    expect(second).toBeTruthy()
+    const npc = h.week!.rivals[0]
+    admitSpecial(npc, first, h)
+    admitSpecial(npc, second, h)
+    first.visitLog.push(h.id)
+    const blocked = npc.patients.find((p) => p.specialId === first.specialId)!
+    blocked.visitLog = []
+    blocked.state = 'treat'
+    expect(findInterceptTarget(h)?.patient.specialId).toBe(second.specialId)
   })
 
   it('does not auto-intercept while offline', () => {

@@ -57,6 +57,8 @@ export function assignDoctor(h: Hospital, doctorId: string, roomId: string): Act
   const room = h.rooms.find((r) => r.id === roomId)
   if (!doctor || !room) return { ok: false, reason: '找不到人或房' }
   if (room.type === 'waiting') return { ok: false, reason: '候诊厅不能派医生' }
+  if (doctor.roomId === room.id && room.doctorIds.includes(doctor.id)) return { ok: true }
+  if (room.doctorIds.includes(doctor.id)) return { ok: false, reason: '已经在岗' }
   if (room.doctorIds.length >= stationSlots(room)) return { ok: false, reason: '工位满了' }
   if (doctor.roomId) {
     const old = h.rooms.find((r) => r.id === doctor.roomId)

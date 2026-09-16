@@ -1,4 +1,5 @@
 import { createSkills, SKILL_IDS } from '../sim/skills'
+import { stationSlots } from '../sim/query'
 import { EVENT_IDS, PLAYER_ID, START_FAME, START_MONEY, START_NURSES } from '../sim/tables'
 import type { CityPatient, Doctor, EventId, Hospital, Hot, Patient, Room, Skill, WeekMatch } from '../sim/types'
 
@@ -228,7 +229,32 @@ export function migrateHospital(
       if (room.type === 'specialist' && !room.recipeId) room.recipeId = recipe
     }
   }
+  reconcileStaff(hospital)
   return hospital
+}
+
+function reconcileStaff(h: Hospital) {
+  const known = new Set(h.doctors.map((d) => d.id))
+  for (const room of h.rooms) {
+    const unique: string[] = []
+    for (const id of room.doctorIds) {
+      if (!known.has(id) || unique.includes(id)) continue
+      unique.push(id)
+    }
+    room.doctorIds = unique.slice(0, Math.max(0, stationSlots(room)))
+  }
+  for (const doctor of h.doctors) {
+    const homes = h.rooms.filter((r) => r.doctorIds.includes(doctor.id))
+    if (homes.length === 0) {
+      doctor.roomId = null
+      continue
+    }
+    const keep = homes.find((r) => r.id === doctor.roomId) ?? homes[0]
+    doctor.roomId = keep.id
+    for (const extra of homes) {
+      if (extra.id !== keep.id) extra.doctorIds = extra.doctorIds.filter((id) => id !== doctor.id)
+    }
+  }
 }
 
 export function loadHospital(): Hospital | null {

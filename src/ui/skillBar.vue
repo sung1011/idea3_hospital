@@ -55,7 +55,7 @@ const chips = computed(() =>
       <em>{{ chip.cdText }}</em>
     </button>
     <button
-      v-if="game.skillId || game.lineFirst"
+      v-if="game.skillId || game.lineFirst || game.surgeryFirst"
       type="button"
       class="chip cancel"
       aria-label="取消指定"

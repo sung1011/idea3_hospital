@@ -115,6 +115,16 @@ describe('shapes', () => {
     expect(getSkill(h, 'disinfect')!.cdLeft).toBe(20)
   })
 
+  it('flush hitting both tiles of a surgery room subtracts per cell', () => {
+    const h = createHospital()
+    h.eventIn = 99999
+    h.discharged = 30
+    buildRoom(h, 'surgery', [{ r: 2, c: 1 }, { r: 2, c: 2 }])
+    h.rooms[0].pollution = 80
+    expect(castSkill(h, 'flush', { r: 2, c: 1 }, { r: 2, c: 2 }).ok).toBe(true)
+    expect(h.rooms[0].pollution).toBe(50)
+  })
+
   it('rejects a flush without an adjacent direction tile', () => {
     const h = dirty(80, 30)
     expect(castSkill(h, 'flush', { r: 4, c: 2 }).ok).toBe(false)

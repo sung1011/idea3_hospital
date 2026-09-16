@@ -5,6 +5,9 @@ import { leavePatient, pullFromRooms, refreshQueueStates } from './patientAct'
 import {
   addFame,
   canEnterSpecialist,
+  doorTile,
+  erDoorTile,
+  fieldCount,
   isUnlocked,
   nextId,
   roomsOf,
@@ -19,6 +22,7 @@ import {
   INTERCEPT_FAME,
   INTERCEPT_POLLUTE,
   INTERCEPT_RAGE,
+  MAX_FIELD,
   NPC_IDS,
   OFFER_DEADLINE_MS,
   RECIPE,
@@ -398,6 +402,9 @@ export function chooseOffer(h: Hospital, choice: OfferChoice): ActionResult {
   if (!isUnlocked(h, 'week')) return { ok: false, reason: '周赛尚未解锁' }
   const city = pendingOffer(h)
   if (!h.week || !city) return { ok: false, reason: '没有特殊病人' }
+  if (choice === 'accept' && fieldCount(h) >= MAX_FIELD) {
+    return { ok: false, reason: '场上已满，接不进来' }
+  }
   h.week.pendingOfferId = null
   if (choice === 'accept') {
     admitSpecial(h, city, h)
@@ -422,26 +429,27 @@ function stealable(p: Patient, playerId: string): boolean {
   return true
 }
 
-function defaultInterceptTarget(rival: Hospital, playerId: string): Patient | null {
+function interceptCandidates(rival: Hospital, playerId: string): Patient[] {
   const list = rival.patients.filter((p) => stealable(p, playerId))
-  const treating = list.find((p) => p.state === 'treat')
-  if (treating) return treating
+  const treating = list.filter((p) => p.state === 'treat')
+  const heads: Patient[] = []
   for (const room of rival.rooms) {
     const head = list.find((p) => room.queue[0] === p.id)
-    if (head) return head
+    if (head && !treating.includes(head) && !heads.includes(head)) heads.push(head)
   }
-  return list[0] ?? null
+  const rest = list.filter((p) => !treating.includes(p) && !heads.includes(p))
+  return [...treating, ...heads, ...rest]
 }
 
 export function findInterceptTarget(h: Hospital): { rival: Hospital; patient: Patient; city: CityPatient } | null {
   if (!h.week) return null
   for (const rival of h.week.rivals) {
-    const patient = defaultInterceptTarget(rival, h.id)
-    if (!patient?.specialId) continue
-    const city = h.week.cityQueue.find((c) => c.specialId === patient.specialId)
-    if (!city) continue
-    if (city.visitLog.includes(h.id)) continue
-    return { rival, patient, city }
+    for (const patient of interceptCandidates(rival, h.id)) {
+      if (!patient.specialId) continue
+      const city = h.week.cityQueue.find((c) => c.specialId === patient.specialId)
+      if (!city || city.visitLog.includes(h.id)) continue
+      return { rival, patient, city }
+    }
   }
   return null
 }
@@ -450,6 +458,7 @@ export function canIntercept(h: Hospital): boolean {
   if (!isUnlocked(h, 'intercept')) return false
   if (h.interceptUsed) return false
   if (h.fame < INTERCEPT_FAME) return false
+  if (fieldCount(h) >= MAX_FIELD) return false
   return !!findInterceptTarget(h)
 }
 
@@ -457,6 +466,7 @@ export function interceptReason(h: Hospital): string {
   if (!isUnlocked(h, 'intercept')) return '累计出院 100 解锁截诊'
   if (h.interceptUsed) return '本周截诊已用'
   if (h.fame < INTERCEPT_FAME) return `口碑不足 ${INTERCEPT_FAME}`
+  if (fieldCount(h) >= MAX_FIELD) return '场上已满，截不进来'
   if (!findInterceptTarget(h)) return '对手手里没有可截的特殊病人'
   return ''
 }
@@ -486,6 +496,15 @@ export function intercept(h: Hospital): ActionResult {
   patient.visitLog = [...city.visitLog]
   patient.transferCount = city.transferCount
   patient.rage = Math.min(100, patient.rage + INTERCEPT_RAGE)
+  const door = patient.isEr ? erDoorTile() : doorTile()
+  patient.x = door.c
+  patient.y = door.r
+  patient.walkFromX = door.c
+  patient.walkFromY = door.r
+  patient.walkToX = door.c
+  patient.walkToY = door.r
+  patient.walkRemain = 0
+  patient.walkTotal = 0
   patient.inRoomId = null
   patient.toRoomId = null
   patient.toHall = false
