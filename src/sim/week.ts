@@ -1,7 +1,7 @@
 import { applySpecialErPath } from './er'
 import { makePatient, routePatient } from './flow'
 import { applyRecipeToHospital, createNpcHospital } from './npcLayouts'
-import { leavePatient, pullFromRooms } from './patientAct'
+import { leavePatient, pullFromRooms, refreshQueueStates } from './patientAct'
 import {
   addFame,
   canEnterSpecialist,
@@ -128,7 +128,15 @@ function cityWipe(owner: Hospital, city: CityPatient) {
   for (const hosp of allHospitals(owner)) addFame(hosp, -FAME_CITY_FAIL)
 }
 
-function transferSpecial(owner: Hospital, city: CityPatient) {
+function offerToPlayer(owner: Hospital, city: CityPatient, now: number) {
+  if (!owner.week) return
+  city.currentHospitalId = null
+  if (owner.week.pendingOfferId) return
+  owner.week.pendingOfferId = city.specialId
+  city.offerDeadline = now + OFFER_DEADLINE_MS
+}
+
+function transferSpecial(owner: Hospital, city: CityPatient, now: number) {
   if (!owner.week) return
   city.transferCount += 1
   city.currentHospitalId = null
@@ -136,12 +144,16 @@ function transferSpecial(owner: Hospital, city: CityPatient) {
     cityWipe(owner, city)
     return
   }
-  const nextId = owner.week.hospitalIds.find((id) => !city.visitLog.includes(id))
-  if (!nextId) {
+  const nextHospitalId = owner.week.hospitalIds.find((id) => !city.visitLog.includes(id))
+  if (!nextHospitalId) {
     cityWipe(owner, city)
     return
   }
-  const dest = hospitalOf(owner, nextId)
+  if (nextHospitalId === owner.id) {
+    offerToPlayer(owner, city, now)
+    return
+  }
+  const dest = hospitalOf(owner, nextHospitalId)
   if (!dest) {
     cityWipe(owner, city)
     return
@@ -149,7 +161,7 @@ function transferSpecial(owner: Hospital, city: CityPatient) {
   admitSpecial(dest, city, owner)
 }
 
-export function resolveSpecials(owner: Hospital) {
+export function resolveSpecials(owner: Hospital, now = Date.now()) {
   if (!owner.week) return
   const finished: { hosp: Hospital; p: Patient }[] = []
   for (const hosp of allHospitals(owner)) {
@@ -169,7 +181,7 @@ export function resolveSpecials(owner: Hospital) {
       if (owner.week.pendingOfferId === city.specialId) owner.week.pendingOfferId = null
       continue
     }
-    transferSpecial(owner, city)
+    transferSpecial(owner, city, now)
   }
 }
 
@@ -178,7 +190,7 @@ export function tickRivals(owner: Hospital, opts: TickOpts = {}) {
   for (const rival of owner.week.rivals) {
     applyTick(rival, { ...opts, spawnEvents: false })
   }
-  resolveSpecials(owner)
+  resolveSpecials(owner, opts.now)
 }
 
 function spawnCityPatient(h: Hospital, now: number) {
@@ -207,7 +219,9 @@ function spawnDue(h: Hospital, now: number) {
 }
 
 export function backfillWeekOffer(h: Hospital, now = Date.now()): boolean {
-  if (!h.week || h.week.pendingOfferId) return false
+  if (!h.week) return false
+  if (h.week.pendingOfferId && !pendingOffer(h)) h.week.pendingOfferId = null
+  if (h.week.pendingOfferId) return false
   const waiting = h.week.cityQueue.find(
     (c) => !c.currentHospitalId && !c.visitLog.includes(h.id),
   )
@@ -251,7 +265,20 @@ function applyRewards(owner: Hospital, ranks: WeekRank[]) {
   }
 }
 
-function flushLeftoverSpecials(owner: Hospital) {
+function purgeSpecialPatients(owner: Hospital) {
+  for (const hosp of allHospitals(owner)) {
+    const gone = new Set(hosp.patients.filter((p) => p.isSpecial).map((p) => p.id))
+    if (!gone.size) continue
+    hosp.patients = hosp.patients.filter((p) => !p.isSpecial)
+    for (const room of hosp.rooms) {
+      if (!room.queue.some((id) => gone.has(id))) continue
+      room.queue = room.queue.filter((id) => !gone.has(id))
+      refreshQueueStates(room, hosp)
+    }
+  }
+}
+
+function flushLeftoverSpecials(owner: Hospital, now: number) {
   if (!owner.week) return
   for (const hosp of allHospitals(owner)) {
     for (const p of [...hosp.patients]) {
@@ -260,7 +287,8 @@ function flushLeftoverSpecials(owner: Hospital) {
       }
     }
   }
-  resolveSpecials(owner)
+  resolveSpecials(owner, now)
+  purgeSpecialPatients(owner)
   owner.week.cityQueue = []
   owner.week.pendingOfferId = null
 }
@@ -303,7 +331,7 @@ function openWeek(
 
 function settleWeek(h: Hospital, now: number) {
   if (!h.week) return
-  flushLeftoverSpecials(h)
+  flushLeftoverSpecials(h, now)
   const ranks = rankWeek(h.week)
   applyRewards(h, ranks)
   const recipeId = nextRecipe(h.week.recipeId)

@@ -229,6 +229,10 @@ export function rewriteInfectious(p: Patient) {
   const finished = p.path.slice(0, p.node)
   const current = p.path[p.node] ?? 'reception'
   const used = new Set([...finished, current])
+  if (skippedDiagnosis(p)) {
+    used.add('reception')
+    used.add('diagnosis')
+  }
   const rest = DISEASE.infectious.path.filter((t) => !used.has(t))
   p.path = [...finished, current, ...rest]
   p.disease = 'infectious'

@@ -12,6 +12,7 @@ import { assignDoctor, fireDoctor, fireNurse, hireDoctor, hireNurse, idleDoctors
 import { advanceGame, chooseOffer, demoUnlockWeek, intercept, stepWeek } from '../sim/week'
 import type { ActionResult, Hospital, OfferChoice, RoomType, SkillId, Tile } from '../sim/types'
 import { loadHospital, saveHospital } from './saveGame'
+import { clockGate, type ClockGateEvent } from './visClock'
 
 function worthShow(s: OfflineSummary): boolean {
   return s.seconds >= 5 || s.done > 0 || s.left > 0 || s.dead > 0
@@ -53,22 +54,49 @@ export const useGameStore = defineStore('game', () => {
     saveHospital(hospital.value)
   }
 
-  function onVis() {
-    if (document.visibilityState === 'hidden') {
-      if (timer) {
-        window.clearInterval(timer)
-        timer = 0
-      }
+  function pauseClock(shouldPersist: boolean) {
+    if (timer) {
+      window.clearInterval(timer)
+      timer = 0
+    }
+    if (shouldPersist) persist()
+  }
+
+  function runClock() {
+    if (timer) return
+    timer = window.setInterval(() => {
+      hospital.value = advanceGame(hospital.value)
       persist()
-      return
-    }
+    }, 1000)
+  }
+
+  function resumeClock() {
     catchUp()
-    if (!timer) {
-      timer = window.setInterval(() => {
-        hospital.value = advanceGame(hospital.value)
-        persist()
-      }, 1000)
-    }
+    runClock()
+  }
+
+  function applyClock(event: ClockGateEvent) {
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+    const action = clockGate(event, hidden)
+    if (action === 'pause') pauseClock(true)
+    else if (action === 'resume') resumeClock()
+    else if (action === 'run') runClock()
+  }
+
+  function onVis() {
+    applyClock('visibilitychange')
+  }
+
+  function onPageHide() {
+    applyClock('pagehide')
+  }
+
+  function onPageShow() {
+    applyClock('pageshow')
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') cancelTarget()
   }
 
   function boot() {
@@ -96,23 +124,21 @@ export const useGameStore = defineStore('game', () => {
   function startClock() {
     stopClock()
     boot()
-    timer = window.setInterval(() => {
-      hospital.value = advanceGame(hospital.value)
-      persist()
-    }, 1000)
+    applyClock('start')
     document.addEventListener('visibilitychange', onVis)
-    window.addEventListener('pagehide', persist)
+    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('pageshow', onPageShow)
     window.addEventListener('beforeunload', persist)
+    window.addEventListener('keydown', onKey)
   }
 
   function stopClock() {
-    if (timer) {
-      window.clearInterval(timer)
-      timer = 0
-    }
+    pauseClock(false)
     document.removeEventListener('visibilitychange', onVis)
-    window.removeEventListener('pagehide', persist)
+    window.removeEventListener('pagehide', onPageHide)
+    window.removeEventListener('pageshow', onPageShow)
     window.removeEventListener('beforeunload', persist)
+    window.removeEventListener('keydown', onKey)
   }
 
   function dismissOfflineSummary() {

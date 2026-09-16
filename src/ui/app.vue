@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { hasReception } from '../sim/query'
+import { pendingOffer } from '../sim/week'
 import Board from './board.vue'
 import BuildBar from './buildBar.vue'
 import ErBar from './erBar.vue'
@@ -16,6 +17,7 @@ import WeekOffer from './weekOffer.vue'
 
 const game = useGameStore()
 const running = computed(() => hasReception(game.hospital))
+const hasOffer = computed(() => !!pendingOffer(game.hospital))
 const shift = computed(() => {
   if (game.hospital.fame <= 0) return '夜班 · 口碑见底，日常病人不进门'
   if (!running.value) return '夜班 · 先放前台'
@@ -49,11 +51,11 @@ onUnmounted(() => {
     <p class="hint">
       {{
         game.skillId === 'flush' && !game.lineFirst
-          ? '冲洗：先点一格，再点相邻格定方向。点棋盘外空白取消。'
+          ? '冲洗：先点一格，再点相邻格定方向。再点技能、点「取消指定」、Esc 或棋盘外空白取消。'
           : game.skillId === 'flush'
-            ? '再点相邻一格定方向。点棋盘外空白取消。'
+            ? '再点相邻一格定方向。再点技能、点「取消指定」、Esc 或棋盘外空白取消。'
             : game.skillId
-              ? '点地块施放。空地可点但没房无效。点棋盘外空白取消。'
+              ? '点地块施放。空地可点但没房无效。再点技能、点「取消指定」、Esc 或棋盘外空白取消。'
               : game.buildType === 'reception'
                 ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
                 : game.buildType === 'surgery' && !game.surgeryFirst
@@ -64,7 +66,7 @@ onUnmounted(() => {
       }}
     </p>
     <OfflineSummary />
-    <EventCard v-if="!game.offlineSummary && !game.hospital.week?.pendingOfferId" />
+    <EventCard v-if="!game.offlineSummary && !hasOffer" />
     <WeekOffer />
   </div>
 </template>

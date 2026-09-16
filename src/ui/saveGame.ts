@@ -1,6 +1,6 @@
 import { createSkills, SKILL_IDS } from '../sim/skills'
 import { EVENT_IDS, PLAYER_ID, START_FAME, START_MONEY, START_NURSES } from '../sim/tables'
-import type { Doctor, EventId, Hospital, Hot, Patient, Room, Skill, WeekMatch } from '../sim/types'
+import type { CityPatient, Doctor, EventId, Hospital, Hot, Patient, Room, Skill, WeekMatch } from '../sim/types'
 
 export const SAVE_KEY = 'idea3Hospital'
 
@@ -128,6 +128,20 @@ function migrateHots(raw: unknown): Hot[] {
     .filter((hot): hot is Hot => !!hot)
 }
 
+function migrateCity(raw: unknown): CityPatient | null {
+  if (!raw || typeof raw !== 'object') return null
+  const c = raw as Partial<CityPatient>
+  if (typeof c.specialId !== 'string' || !c.specialId || !c.recipeId) return null
+  return {
+    specialId: c.specialId,
+    recipeId: c.recipeId,
+    visitLog: Array.isArray(c.visitLog) ? c.visitLog.filter((id): id is string => typeof id === 'string') : [],
+    transferCount: Math.max(0, num(c.transferCount, 0)),
+    currentHospitalId: typeof c.currentHospitalId === 'string' ? c.currentHospitalId : null,
+    offerDeadline: num(c.offerDeadline, 0),
+  }
+}
+
 function migrateWeek(raw: unknown, now: number): WeekMatch | null {
   if (!raw || typeof raw !== 'object') return null
   const w = raw as Partial<WeekMatch>
@@ -135,6 +149,10 @@ function migrateWeek(raw: unknown, now: number): WeekMatch | null {
   const rivals = w.rivals
     .map((rival) => migrateHospital(rival, now, { nested: true }))
     .filter((rival): rival is Hospital => !!rival)
+  const cityQueue = Array.isArray(w.cityQueue)
+    ? w.cityQueue.map((c) => migrateCity(c)).filter((c): c is CityPatient => !!c)
+    : []
+  const pendingOfferId = typeof w.pendingOfferId === 'string' ? w.pendingOfferId : null
   return {
     weekId: Math.max(1, num(w.weekId, 1)),
     recipeId: w.recipeId,
@@ -144,8 +162,9 @@ function migrateWeek(raw: unknown, now: number): WeekMatch | null {
     spawned: Math.max(0, num(w.spawned, 0)),
     hospitalIds: w.hospitalIds.filter((id): id is string => typeof id === 'string'),
     scores: Array.isArray(w.scores) ? w.scores.map((s) => num(s, 0)) : [0, 0, 0, 0],
-    cityQueue: Array.isArray(w.cityQueue) ? w.cityQueue : [],
-    pendingOfferId: typeof w.pendingOfferId === 'string' ? w.pendingOfferId : null,
+    cityQueue,
+    pendingOfferId:
+      pendingOfferId && cityQueue.some((c) => c.specialId === pendingOfferId) ? pendingOfferId : null,
     pendingRecipeId: w.pendingRecipeId ?? w.recipeId,
     infectMul: num(w.infectMul, 1),
     pendingInfectMul: num(w.pendingInfectMul, 1),

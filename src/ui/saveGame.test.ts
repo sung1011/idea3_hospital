@@ -63,6 +63,33 @@ describe('migrateHospital', () => {
     expect(Number.isFinite(h.money)).toBe(true)
   })
 
+  it('drops a stale pendingOfferId and junk city patients', () => {
+    const h = migrateHospital(
+      {
+        lastTick: 1000,
+        rooms: [],
+        week: {
+          recipeId: 'isolate',
+          hospitalIds: ['player', 'npc-isolate'],
+          rivals: [
+            {
+              id: 'npc-isolate',
+              rooms: [{ id: 'nr', type: 'reception', tiles: [{ r: 4, c: 2 }] }],
+              doctors: [],
+            },
+          ],
+          pendingOfferId: 'ghost',
+          cityQueue: [{ visitLog: [] }, { specialId: 'sp-1', recipeId: 'isolate' }],
+        },
+      },
+      1000,
+    )
+    expect(h!.week?.pendingOfferId).toBeNull()
+    expect(h!.week?.cityQueue).toHaveLength(1)
+    expect(h!.week?.cityQueue[0].visitLog).toEqual([])
+    expect(h!.week?.cityQueue[0].transferCount).toBe(0)
+  })
+
   it('drops a malformed week instead of crashing on rivals', () => {
     const h = migrateHospital(
       {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRoom } from './build'
 import { createHospital } from './createHospital'
 import { applyErPath, applySpecialErPath, setErOpen, shouldMarkEr, skippedDiagnosis, toggleEr } from './er'
-import { arrivePatient, makePatient, routePatient, spawnPatient, treatChance } from './flow'
+import { arrivePatient, makePatient, rewriteInfectious, routePatient, spawnPatient, treatChance } from './flow'
 import { isUnlocked } from './query'
 import { assignDoctor } from './staff'
 import { ER_CLOSE_REFUND, ER_DOOR, ER_OPEN_COST, ER_SUCCESS_MUL, START_MONEY, SUCCESS } from './tables'
@@ -174,6 +174,28 @@ describe('er path skip and insert', () => {
     routePatient(h, extra)
     expect(extra.toHall).toBe(true)
     expect(extra.toRoomId).toBe(hall.id)
+  })
+
+  it('infectious rewrite does not send an ER VIP back to reception', () => {
+    const h = createHospital()
+    const vip = makePatient(h, 'vip', true)
+    applyErPath(vip)
+    expect(vip.path).toEqual(['treatment', 'pharmacy'])
+    rewriteInfectious(vip)
+    expect(vip.disease).toBe('infectious')
+    expect(vip.isEr).toBe(true)
+    expect(vip.path).toEqual(['treatment', 'ward', 'pharmacy'])
+    expect(vip.path).not.toContain('reception')
+    expect(vip.path).not.toContain('diagnosis')
+    expect(skippedDiagnosis(vip)).toBe(true)
+  })
+
+  it('infectious rewrite keeps a diagnosed VIP on the remaining infectious tail', () => {
+    const h = createHospital()
+    const vip = makePatient(h, 'vip')
+    vip.node = 1
+    rewriteInfectious(vip)
+    expect(vip.path).toEqual(['reception', 'diagnosis', 'ward', 'treatment', 'pharmacy'])
   })
 
   it('VIP ER still sits at the queue head', () => {

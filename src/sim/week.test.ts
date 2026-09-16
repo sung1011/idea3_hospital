@@ -18,12 +18,14 @@ import { tick } from './tick'
 import type { Hospital, RecipeId } from './types'
 import {
   admitSpecial,
+  backfillWeekOffer,
   canEnterSpecialist,
   chooseOffer,
   demoUnlockWeek,
   ensureWeek,
   findInterceptTarget,
   intercept,
+  pendingOffer,
   resolveSpecials,
   stepWeek,
   tickRivals,
@@ -226,6 +228,21 @@ describe('intercept once', () => {
     expect(intercept(h)).toEqual({ ok: false, reason: '本周截诊已用' })
   })
 
+  it('cannot intercept a special already walking out the door', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = null
+    const npc = h.week!.rivals[0]
+    admitSpecial(npc, city, h)
+    const p = npc.patients.find((x) => x.isSpecial)!
+    p.toDoor = true
+    p.state = 'walk'
+    expect(findInterceptTarget(h)).toBeNull()
+    expect(intercept(h)).toEqual({ ok: false, reason: '对手手里没有可截的特殊病人' })
+  })
+
   it('does not auto-intercept while offline', () => {
     const h = unlock(1_000_000)
     isolateLine(h)
@@ -258,6 +275,50 @@ describe('week settlement', () => {
     expect(h.interceptUsed).toBe(false)
     expect(h.week!.scores).toEqual([0, 0, 0, 0])
     expect(h.rooms.find((r) => r.type === 'specialist')?.recipeId).toBe('micro')
+  })
+
+  it('offers back to the player instead of silently admitting after an NPC fail', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    expect(chooseOffer(h, 'transfer').ok).toBe(true)
+    const city = h.week!.cityQueue[0]
+    const npc = h.week!.rivals.find((r) => r.patients.some((p) => p.isSpecial))!
+    const p = npc.patients.find((x) => x.isSpecial)!
+    leavePatient(npc, p)
+    resolveSpecials(h, 1)
+    expect(h.patients.some((x) => x.isSpecial)).toBe(false)
+    expect(h.week!.pendingOfferId).toBe(city.specialId)
+    expect(pendingOffer(h)?.specialId).toBe(city.specialId)
+    expect(city.currentHospitalId).toBeNull()
+    expect(city.transferCount).toBe(1)
+    expect(city.visitLog).not.toContain(h.id)
+  })
+
+  it('clears a stale pendingOfferId so the next city patient can be offered', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    const city = h.week!.cityQueue[0]
+    h.week!.pendingOfferId = 'ghost'
+    expect(pendingOffer(h)).toBeNull()
+    expect(backfillWeekOffer(h, 1)).toBe(true)
+    expect(h.week!.pendingOfferId).toBe(city.specialId)
+  })
+
+  it('does not carry leftover specials into the next week', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    stepWeek(h, 0)
+    chooseOffer(h, 'accept')
+    expect(h.patients.some((p) => p.isSpecial)).toBe(true)
+    h.week!.endsAt = 100
+    h.week!.nextSpawnAt = 1e15
+    stepWeek(h, 100)
+    expect(h.week!.weekId).toBe(2)
+    expect(h.patients.some((p) => p.isSpecial)).toBe(false)
+    expect(h.week!.rivals.every((r) => !r.patients.some((p) => p.isSpecial))).toBe(true)
+    expect(h.week!.cityQueue.every((c) => c.recipeId === 'micro' && c.transferCount === 0)).toBe(true)
   })
 
   it('times out an untouched offer as transfer', () => {

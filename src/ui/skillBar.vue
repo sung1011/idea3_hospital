@@ -17,8 +17,21 @@ const chips = computed(() =>
       unlocked,
       cdLeft,
       locked: !unlocked || cdLeft > 0,
-      cdText: !unlocked ? `${SKILL_DEF[id].unlockAt}出院` : cdLeft > 0 ? `${cdLeft}秒` : '就绪',
-      title: unlocked ? (cdLeft > 0 ? `冷却 ${cdLeft} 秒` : `冷却 ${SKILL_DEF[id].cdS} 秒`) : `${SKILL_DEF[id].unlockAt} 出院解锁`,
+      aiming: game.skillId === id,
+      cdText: !unlocked
+        ? `${SKILL_DEF[id].unlockAt}出院`
+        : cdLeft > 0
+          ? `${cdLeft}秒`
+          : game.skillId === id
+            ? '指定中'
+            : '就绪',
+      title: unlocked
+        ? cdLeft > 0
+          ? `冷却 ${cdLeft} 秒`
+          : game.skillId === id
+            ? '再点取消指定'
+            : `冷却 ${SKILL_DEF[id].cdS} 秒`
+        : `${SKILL_DEF[id].unlockAt} 出院解锁`,
     }
   }),
 )
@@ -31,7 +44,7 @@ const chips = computed(() =>
       :key="chip.id"
       type="button"
       class="chip"
-      :class="{ on: game.skillId === chip.id, locked: chip.locked }"
+      :class="{ on: chip.aiming, locked: chip.locked }"
       :disabled="chip.locked"
       :aria-pressed="game.skillId === chip.id"
       :aria-label="`${chip.label} ${chip.title}`"
@@ -40,6 +53,15 @@ const chips = computed(() =>
     >
       {{ chip.label }}
       <em>{{ chip.cdText }}</em>
+    </button>
+    <button
+      v-if="game.skillId || game.lineFirst"
+      type="button"
+      class="chip cancel"
+      aria-label="取消指定"
+      @click="game.cancelTarget()"
+    >
+      取消指定
     </button>
   </div>
 </template>
@@ -77,5 +99,17 @@ const chips = computed(() =>
 
 .chip.locked {
   opacity: 0.35;
+}
+
+.chip.cancel {
+  border-color: var(--stamp);
+  color: #ffd4d4;
+}
+
+@media (max-width: 520px) {
+  .chip {
+    padding: 8px 10px;
+    min-height: 36px;
+  }
 }
 </style>

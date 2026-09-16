@@ -60,4 +60,11 @@ const game = useGameStore()
 .chip.locked {
   opacity: 0.35;
 }
+
+@media (max-width: 520px) {
+  .chip {
+    padding: 8px 10px;
+    min-height: 36px;
+  }
+}
 </style>
