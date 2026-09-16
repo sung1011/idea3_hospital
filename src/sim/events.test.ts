@@ -5,7 +5,7 @@ import { availableEvents, backfillEvent, chooseEvent } from './events'
 import { makePatient } from './flow'
 import { ticks } from './tick'
 import { assignDoctor } from './staff'
-import { MAX_FIELD } from './tables'
+import { EVENT_TEXT, MAX_FIELD } from './tables'
 import type { Hospital } from './types'
 
 function withReception(discharged = 0): Hospital {
@@ -55,6 +55,8 @@ describe('event choices', () => {
     expect(chooseEvent(h, 'left').ok).toBe(true)
     expect(h.patients.filter((p) => p.disease === 'vip')).toHaveLength(1)
     expect(h.patients.length).toBe(MAX_FIELD + 1)
+    expect(EVENT_TEXT.vipCut.left).toContain('20 人')
+    expect(EVENT_TEXT.vipCut.left).toContain('口碑见底也能进')
   })
 
   it('prefers a staffed room when a doctor is on duty', () => {

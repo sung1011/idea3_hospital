@@ -236,7 +236,7 @@ export const EVENT_TEXT: Record<EventId, { title: string; left: string; right: s
   },
   vipCut: {
     title: '有人要插队，说是董事的亲戚。',
-    left: '让。立刻进场 1 个 VIP（可超当日上限）。',
+    left: '让。立刻进场 1 个 VIP（可超过场上 20 人上限，口碑见底也能进）。',
     right: '不让。口碑 +3，不加钱。',
   },
   inspect: {

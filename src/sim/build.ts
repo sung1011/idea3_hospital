@@ -21,7 +21,7 @@ import {
   UPGRADE_QUEUE,
 } from './tables'
 import type { ActionResult, Hospital, Patient, RoomType, Tile } from './types'
-import { leavePatient, startWalkTo } from './patientAct'
+import { leavePatient, pullFromRooms, startWalkTo } from './patientAct'
 
 export function canReceiveAt(tile: Tile): boolean {
   return tile.r === GRID_SIZE - 1 && RECEPTION_COLS.includes(tile.c)
@@ -102,7 +102,24 @@ export function sellRoom(h: Hospital, roomId: string): ActionResult {
     p.rage = Math.min(100, p.rage + 20)
     rerouteAfterSell(h, p, room.type)
   }
+  rerouteParkedForType(h, room.type)
   return { ok: true }
+}
+
+/** 候诊厅里、正往厅走、或堵着等这一环的人：没同类型就走人，有空位就改路。 */
+function rerouteParkedForType(h: Hospital, type: RoomType) {
+  for (const p of [...h.patients]) {
+    if (p.state === 'done' || p.state === 'leave' || p.state === 'dead') continue
+    if (p.path[p.node] !== type) continue
+    const parkedHall =
+      p.state === 'waitHall' ||
+      (!!p.inRoomId && h.rooms.find((r) => r.id === p.inRoomId)?.type === 'waiting')
+    if (!parkedHall && !p.toHall && !p.blocked) continue
+    if (parkedHall) p.rage = Math.min(100, p.rage + 20)
+    pullFromRooms(h, p)
+    p.inRoomId = null
+    rerouteAfterSell(h, p, type)
+  }
 }
 
 function rerouteAfterSell(h: Hospital, p: Patient, type: RoomType) {

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { isUnlocked } from '../sim/query'
 import { INTERCEPT_FAME, RECIPE, WEEK_UNLOCK_AT } from '../sim/tables'
-import { canIntercept, interceptReason, weekBoard, weekRemainingMs } from '../sim/week'
+import { canIntercept, interceptReason, lastWeekPlace, weekBoard, weekRemainingMs } from '../sim/week'
 import { useGameStore } from './gameStore'
 
 const game = useGameStore()
@@ -20,10 +20,7 @@ const remain = computed(() => {
 const remainUnlock = computed(() => Math.max(0, WEEK_UNLOCK_AT - game.hospital.discharged))
 const interceptOk = computed(() => canIntercept(game.hospital))
 const interceptTip = computed(() => interceptReason(game.hospital))
-const lastPlace = computed(() => {
-  const mine = week.value?.lastResult?.find((r) => r.id === game.hospital.id)
-  return mine?.place ?? null
-})
+const lastPlace = computed(() => lastWeekPlace(game.hospital))
 </script>
 
 <template>

@@ -45,6 +45,54 @@ describe('sell money and reroutes', () => {
     expect(moved.every((p) => p.rage === 20)).toBe(true)
   })
 
+  it('evicts hall guests when the last room of that type is sold', () => {
+    const h = createHospital()
+    h.discharged = 15
+    h.eventIn = 99999
+    buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])
+    buildRoom(h, 'waiting', [{ r: 4, c: 0 }])
+    const diag = h.rooms.find((r) => r.type === 'diagnosis')!
+    const hall = h.rooms.find((r) => r.type === 'waiting')!
+    const p = makePatient(h, 'cold')
+    p.node = 1
+    p.state = 'waitHall'
+    p.inRoomId = hall.id
+    p.x = 0
+    p.y = 4
+    h.patients.push(p)
+    hall.queue.push(p.id)
+    const left = h.leftCount
+    expect(sellRoom(h, diag.id).ok).toBe(true)
+    expect(h.leftCount).toBe(left + 1)
+    expect(p.state).toBe('leave')
+    expect(p.rage).toBe(20)
+    expect(hall.queue).toEqual([])
+  })
+
+  it('sends hall guests to the remaining same-type room', () => {
+    const h = createHospital()
+    h.discharged = 15
+    h.eventIn = 99999
+    buildRoom(h, 'diagnosis', [{ r: 3, c: 1 }])
+    buildRoom(h, 'diagnosis', [{ r: 3, c: 3 }])
+    buildRoom(h, 'waiting', [{ r: 4, c: 0 }])
+    const [keep, sold] = h.rooms.filter((r) => r.type === 'diagnosis')
+    const hall = h.rooms.find((r) => r.type === 'waiting')!
+    const p = makePatient(h, 'cold')
+    p.node = 1
+    p.state = 'waitHall'
+    p.inRoomId = hall.id
+    p.x = 0
+    p.y = 4
+    h.patients.push(p)
+    hall.queue.push(p.id)
+    expect(sellRoom(h, sold.id).ok).toBe(true)
+    expect(p.state).toBe('walk')
+    expect(p.toRoomId).toBe(keep.id)
+    expect(p.toHall).toBe(false)
+    expect(hall.queue).toEqual([])
+  })
+
   it('immediately reroutes a walker headed to the sold room', () => {
     const h = createHospital()
     buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])

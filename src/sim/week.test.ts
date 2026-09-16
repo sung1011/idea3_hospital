@@ -28,6 +28,7 @@ import {
   ensureWeek,
   findInterceptTarget,
   intercept,
+  lastWeekPlace,
   pendingOffer,
   resolveSpecials,
   stepWeek,
@@ -358,6 +359,8 @@ describe('week settlement', () => {
     expect(h.interceptUsed).toBe(false)
     expect(h.week!.scores).toEqual([0, 0, 0, 0])
     expect(h.rooms.find((r) => r.type === 'specialist')?.recipeId).toBe('micro')
+    expect(lastWeekPlace(h)).toBe(1)
+    expect(h.week!.lastResult?.[0]).toMatchObject({ id: 'player', score: 20, place: 1 })
   })
 
   it('offers back to the player instead of silently admitting after an NPC fail', () => {
@@ -429,6 +432,26 @@ describe('week settlement', () => {
     expect(h.week!.weekId).toBe(2)
     expect(h.week!.recipeId).toBe('micro')
     expect(h.interceptUsed).toBe(false)
+    expect(h.week!.lastResult?.every((row) => row.score === 0)).toBe(true)
+    expect(lastWeekPlace(h)).toBeNull()
+  })
+
+  it('does not keep a previous place after a 0-score week', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    h.week!.lastResult = [
+      { id: 'player', score: 20, place: 1 },
+      { id: 'npc-isolate', score: 14, place: 2 },
+      { id: 'npc-micro', score: 10, place: 3 },
+      { id: 'npc-continue', score: 0, place: 4 },
+    ]
+    expect(lastWeekPlace(h)).toBe(1)
+    h.week!.scores = [0, 0, 0, 0]
+    h.week!.endsAt = 100
+    h.week!.nextSpawnAt = 1e15
+    stepWeek(h, 100)
+    expect(h.week!.lastResult?.every((row) => row.score === 0)).toBe(true)
+    expect(lastWeekPlace(h)).toBeNull()
   })
 
   it('only pays the first contested week when the clock jumps multiple weeks', () => {
@@ -446,7 +469,8 @@ describe('week settlement', () => {
     expect(h.week!.weekId).toBe(3)
     expect(h.week!.recipeId).toBe('continue')
     expect(h.interceptUsed).toBe(false)
-    expect(h.week!.lastResult?.[0]).toMatchObject({ id: 'player', score: 20, place: 1 })
+    expect(h.week!.lastResult?.every((row) => row.score === 0)).toBe(true)
+    expect(lastWeekPlace(h)).toBeNull()
     expect(h.week!.endsAt).toBeGreaterThan(100 + WEEK_MS)
   })
 
@@ -471,6 +495,27 @@ describe('week settlement', () => {
     expect(canEnterSpecialist(spec, p)).toBe(false)
     expect(p.toHall).toBe(false)
     expect(p.blocked).toBe(true)
+  })
+})
+
+describe('lastWeekPlace', () => {
+  it('hides a 0-score week and reads the player place when someone scored', () => {
+    const h = unlock(0)
+    expect(lastWeekPlace(h)).toBeNull()
+    h.week!.lastResult = [
+      { id: 'npc-isolate', score: 14, place: 1 },
+      { id: 'player', score: 10, place: 2 },
+      { id: 'npc-micro', score: 0, place: 3 },
+      { id: 'npc-continue', score: 0, place: 4 },
+    ]
+    expect(lastWeekPlace(h)).toBe(2)
+    h.week!.lastResult = [
+      { id: 'player', score: 0, place: 1 },
+      { id: 'npc-isolate', score: 0, place: 2 },
+      { id: 'npc-micro', score: 0, place: 3 },
+      { id: 'npc-continue', score: 0, place: 4 },
+    ]
+    expect(lastWeekPlace(h)).toBeNull()
   })
 })
 

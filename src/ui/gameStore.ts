@@ -216,6 +216,10 @@ export const useGameStore = defineStore('game', () => {
 
     const room = roomAt(hospital.value, tile)
     if (room) {
+      if (buildType.value === 'surgery' && surgeryFirst.value) {
+        notice.value = '格子被占'
+        return
+      }
       selectedRoomId.value = room.id
       buildType.value = null
       surgeryFirst.value = null

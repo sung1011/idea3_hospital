@@ -279,8 +279,14 @@ function applyRewards(owner: Hospital, ranks: WeekRank[]) {
 export function payWeekRanks(owner: Hospital, ranks: WeekRank[]): boolean {
   if (!ranks.some((row) => row.score > 0)) return false
   applyRewards(owner, ranks)
-  if (owner.week) owner.week.lastResult = ranks
   return true
+}
+
+/** 「上周第」只显示刚结束且有治愈分的那一周，避免 0 分周沿用更早的名次。 */
+export function lastWeekPlace(h: Hospital): number | null {
+  const rows = h.week?.lastResult
+  if (!rows?.some((row) => row.score > 0)) return null
+  return rows.find((row) => row.id === h.id)?.place ?? null
 }
 
 function purgeSpecialPatients(owner: Hospital) {
@@ -356,6 +362,7 @@ function settleWeek(h: Hospital, now: number): WeekRank[] {
   const weekId = h.week.weekId + 1
   const rivals = h.week.rivals
   openWeek(h, now, weekId, recipeId, infectMul, rivals)
+  if (h.week) h.week.lastResult = ranks
   return ranks
 }
 
