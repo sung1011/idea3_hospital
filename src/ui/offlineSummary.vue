@@ -31,7 +31,7 @@ const blocked = computed(() => {
       <h2>离线 {{ duration }}</h2>
       <p class="line">完成 {{ game.offlineSummary.done }} / 走人 {{ game.offlineSummary.left }} / 死亡 {{ game.offlineSummary.dead }}</p>
       <p class="line muted">堵得最久：{{ blocked }}</p>
-      <button type="button" @click="game.dismissOfflineSummary()">接班</button>
+      <button type="button" autofocus @click="game.dismissOfflineSummary()">接班</button>
     </div>
   </div>
 </template>

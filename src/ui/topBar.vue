@@ -85,4 +85,18 @@ const unlockHint = computed(() => nextUnlockHint(game.hospital))
   color: var(--muted);
   font-size: 12px;
 }
+
+@media (max-width: 520px) {
+  .cell {
+    padding: 6px 6px 8px;
+  }
+
+  .value {
+    font-size: 18px;
+  }
+
+  .label {
+    font-size: 10px;
+  }
+}
 </style>

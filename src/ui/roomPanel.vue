@@ -6,6 +6,10 @@ import { useGameStore } from './gameStore'
 
 const game = useGameStore()
 const room = computed(() => game.selectedRoom)
+const refund = computed(() => {
+  if (!room.value) return 0
+  return Math.floor(room.value.builtCost * 0.5 + room.value.upgradeSpent * 0.5)
+})
 </script>
 
 <template>
@@ -54,7 +58,9 @@ const room = computed(() => game.selectedRoom)
       >
         紧凑 · {{ UPGRADE_COMPACT }}
       </button>
-      <button type="button" class="danger" @click="game.doSell()">卖掉</button>
+      <button type="button" class="danger" :aria-label="`卖掉，退 ${refund}`" @click="game.doSell()">
+        卖掉 · 退 {{ refund }}
+      </button>
     </div>
   </section>
 </template>

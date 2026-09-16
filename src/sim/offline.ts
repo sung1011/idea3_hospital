@@ -22,7 +22,7 @@ export type OfflineResult = {
 }
 
 export function offlineSeconds(lastTick: number, now = Date.now(), cap = OFFLINE_CAP_S): number {
-  if (!Number.isFinite(lastTick) || !Number.isFinite(now)) return 0
+  if (!Number.isFinite(lastTick) || !Number.isFinite(now) || lastTick <= 0) return 0
   return Math.max(0, Math.min(cap, Math.floor((now - lastTick) / 1000)))
 }
 
@@ -108,10 +108,15 @@ export function settleOffline(hospital: Hospital, now = Date.now()): OfflineResu
   const typeAcc = new Map<RoomType, number>()
   const h = cloneHospital(hospital)
   const startedAt = hospital.lastTick
+  let specialDone = 0
 
   for (let i = 0; i < seconds; i++) {
+    const seen = new Set(h.patients.filter((p) => p.isSpecial && p.state === 'done').map((p) => p.id))
     const t = startedAt + (i + 1) * 1000
     applyTick(h, { now: t, spawnEvents: false })
+    for (const p of h.patients) {
+      if (p.isSpecial && p.state === 'done' && !seen.has(p.id)) specialDone += 1
+    }
     tickRivals(h, { now: t, spawnEvents: false })
     stepWeek(h, t)
     noteBlocked(h, roomAcc, typeAcc)
@@ -125,7 +130,7 @@ export function settleOffline(hospital: Hospital, now = Date.now()): OfflineResu
     hospital: h,
     summary: {
       seconds,
-      done: h.discharged - before.discharged,
+      done: h.discharged - before.discharged + specialDone,
       left: h.leftCount - before.leftCount,
       dead: h.deadCount - before.deadCount,
       blockedRoomId: blocked?.id ?? null,

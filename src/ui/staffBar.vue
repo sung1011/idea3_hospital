@@ -15,15 +15,29 @@ const canFireNurse = computed(() => game.hospital.nurses > 0)
     <span
       >医生 {{ game.hospital.doctors.filter((d) => d.roomId).length }}/{{ game.hospital.doctors.length }}</span
     >
-    <button type="button" :disabled="!canHireDoctor" :title="canHireDoctor ? '' : '钱不够'" @click="game.hireDoctor()">
+    <button
+      type="button"
+      :disabled="!canHireDoctor"
+      :aria-label="canHireDoctor ? `招医生 ${HIRE_DOCTOR} 钱` : '钱不够，招不了医生'"
+      :title="canHireDoctor ? '' : '钱不够'"
+      @click="game.hireDoctor()"
+    >
       招医生 · {{ HIRE_DOCTOR }}
     </button>
-    <button v-if="idleDoctor" type="button" @click="game.fireDoctor(idleDoctor.id)">解雇空闲医生</button>
+    <button v-if="idleDoctor" type="button" aria-label="解雇空闲医生，开局送的不退钱" @click="game.fireDoctor(idleDoctor.id)">
+      解雇空闲医生
+    </button>
     <span>护士 {{ game.hospital.nurses }}/{{ MAX_NURSES }}</span>
-    <button type="button" :disabled="!canHireNurse" :title="canHireNurse ? '' : game.hospital.nurses >= MAX_NURSES ? '护士满了' : '钱不够'" @click="game.hireNurse()">
+    <button
+      type="button"
+      :disabled="!canHireNurse"
+      :aria-label="canHireNurse ? `招护士 ${HIRE_NURSE} 钱` : game.hospital.nurses >= MAX_NURSES ? '护士满了' : '钱不够，招不了护士'"
+      :title="canHireNurse ? '' : game.hospital.nurses >= MAX_NURSES ? '护士满了' : '钱不够'"
+      @click="game.hireNurse()"
+    >
       招护士 · {{ HIRE_NURSE }}
     </button>
-    <button type="button" :disabled="!canFireNurse" @click="game.fireNurse()">解雇护士</button>
+    <button type="button" :disabled="!canFireNurse" aria-label="解雇一名护士" @click="game.fireNurse()">解雇护士</button>
   </div>
 </template>
 

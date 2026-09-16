@@ -31,7 +31,7 @@ const lastPlace = computed(() => {
     <template v-if="unlocked && week">
       <div class="head">
         <strong>周赛 · {{ RECIPE[week.recipeId].name }}</strong>
-        <span>剩余 {{ remain }}</span>
+        <span>本周还剩 {{ remain }} · demo 一周 10 分钟</span>
         <span v-if="lastPlace">上周第 {{ lastPlace }}</span>
       </div>
       <div class="scores">
@@ -39,7 +39,13 @@ const lastPlace = computed(() => {
           {{ row.label }} {{ row.score }}
         </span>
       </div>
-      <button type="button" :disabled="!interceptOk" :title="interceptTip" @click="game.intercept()">
+      <button
+        type="button"
+        :disabled="!interceptOk"
+        :aria-label="interceptOk ? `截诊，花 ${INTERCEPT_FAME} 口碑` : interceptTip || '截诊'"
+        :title="interceptTip"
+        @click="game.intercept()"
+      >
         {{ interceptOk ? `截诊 · 花 ${INTERCEPT_FAME} 口碑` : interceptTip || '截诊' }}
       </button>
     </template>

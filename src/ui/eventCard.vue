@@ -11,7 +11,7 @@ const game = useGameStore()
       <p class="kicker">值班室</p>
       <h2>{{ EVENT_TEXT[game.hospital.pendingEvent].title }}</h2>
       <div class="choices">
-        <button type="button" @click="game.chooseEvent('left')">
+        <button type="button" autofocus @click="game.chooseEvent('left')">
           {{ EVENT_TEXT[game.hospital.pendingEvent].left }}
         </button>
         <button type="button" @click="game.chooseEvent('right')">

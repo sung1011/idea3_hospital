@@ -17,8 +17,8 @@ const chips = computed(() =>
       unlocked,
       cdLeft,
       locked: !unlocked || cdLeft > 0,
-      cdText: cdLeft > 0 ? String(cdLeft) : `CD ${SKILL_DEF[id].cdS}`,
-      title: unlocked ? '' : `${SKILL_DEF[id].unlockAt} 出院解锁`,
+      cdText: !unlocked ? `${SKILL_DEF[id].unlockAt}出院` : cdLeft > 0 ? `${cdLeft}秒` : '就绪',
+      title: unlocked ? (cdLeft > 0 ? `冷却 ${cdLeft} 秒` : `冷却 ${SKILL_DEF[id].cdS} 秒`) : `${SKILL_DEF[id].unlockAt} 出院解锁`,
     }
   }),
 )
@@ -33,6 +33,8 @@ const chips = computed(() =>
       class="chip"
       :class="{ on: game.skillId === chip.id, locked: chip.locked }"
       :disabled="chip.locked"
+      :aria-pressed="game.skillId === chip.id"
+      :aria-label="`${chip.label} ${chip.title}`"
       :title="chip.title"
       @click="game.pickSkill(chip.id)"
     >

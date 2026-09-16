@@ -79,7 +79,8 @@ function applyEvent(h: Hospital, id: EventId, side: 'left' | 'right') {
       h.money -= 30
       h.buffs.push({ kind: 'doctorSpeed', remainS: 180, mul: 1.2 })
     } else {
-      const rooms = h.rooms.filter((r) => r.type !== 'waiting')
+      const staffed = h.rooms.filter((r) => r.type !== 'waiting' && r.doctorIds.length > 0)
+      const rooms = staffed.length ? staffed : h.rooms.filter((r) => r.type !== 'waiting')
       if (rooms.length) h.buffs.push({ kind: 'roomVacant', remainS: 60, roomId: pick(h, rooms).id })
     }
     return

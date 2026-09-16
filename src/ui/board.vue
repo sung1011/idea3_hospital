@@ -38,6 +38,35 @@ function stain(room: Room | undefined): string {
   return `rgba(90, 40, 80, ${a})`
 }
 
+function hasHot(tile: Tile): boolean {
+  return game.hospital.hots.some((hot) => hot.tile.r === tile.r && hot.tile.c === tile.c)
+}
+
+function tileLabel(tile: Tile): string {
+  const room = roomOn(tile)
+  const pos = `${tile.r + 1}行${tile.c + 1}列`
+  if (room) {
+    const bits = [`${pos} ${ROOM_LABEL[room.type]}`, `队列${room.queue.length}/${queueCap(room)}`]
+    if (room.pollution > 0) bits.push(`污染${Math.round(room.pollution)}`)
+    if (hasHot(tile)) bits.push('持续消毒中')
+    return bits.join(' ')
+  }
+  if (canDrop(tile)) return `${pos} 可建造`
+  if (canAim(tile)) return `${pos} 可指定`
+  return `${pos} 空地`
+}
+
+const emptyHint = computed(() => {
+  if (game.hospital.rooms.length === 0) {
+    return '先点建造栏的「前台」，再点底行正门旁会亮绿框的格子。没有前台，病人不进门。'
+  }
+  const reception = game.hospital.rooms.find((r) => r.type === 'reception')
+  if (reception && reception.doctorIds.length === 0) {
+    return '前台没医生 = 关门。点前台，再点「派空闲医生」。'
+  }
+  return ''
+})
+
 const actors = computed(() =>
   game.hospital.patients.filter(
     (p) => p.state === 'walk' || p.state === 'queue' || p.state === 'treat' || p.state === 'waitHall',
@@ -64,6 +93,7 @@ const erOpen = computed(() => game.hospital.erOpen)
           :key="`${cell.r}-${cell.c}`"
           type="button"
           class="tile"
+          :aria-label="tileLabel(cell)"
           :class="{
             doorCol: cell.c === DOOR_COL && cell.r === GRID_SIZE - 1,
             erCol: erUnlocked && cell.c === ER_DOOR_COL && cell.r === GRID_SIZE - 1,
@@ -81,7 +111,9 @@ const erOpen = computed(() => game.hospital.erOpen)
             <small v-if="roomOn(cell)!.type !== 'waiting' || roomOn(cell)!.queue.length"
               >{{ roomOn(cell)!.queue.length }}/{{ queueCap(roomOn(cell)!) }}</small
             >
+            <small v-if="roomOn(cell)!.pollution > 0" class="stainLabel">污{{ Math.round(roomOn(cell)!.pollution) }}</small>
           </span>
+          <i v-if="hasHot(cell)" class="hotDot" aria-hidden="true" />
           <i class="dirt" :style="{ background: stain(roomOn(cell)) }" />
         </button>
       </div>
@@ -111,6 +143,7 @@ const erOpen = computed(() => game.hospital.erOpen)
         />
       </div>
     </div>
+    <p v-if="emptyHint" class="empty">{{ emptyHint }}</p>
   </div>
 </template>
 
@@ -196,16 +229,63 @@ const erOpen = computed(() => game.hospital.erOpen)
   line-height: 1.15;
 }
 
+@media (max-width: 520px) {
+  .room {
+    right: 3px;
+    bottom: 3px;
+    font-size: 12px;
+  }
+
+  .room small {
+    font-size: 10px;
+  }
+
+  .coord {
+    top: 3px;
+    left: 3px;
+    font-size: 9px;
+  }
+
+  .wrap {
+    padding: 8px 8px 6px;
+  }
+}
+
 .room small {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
 }
 
+.stainLabel {
+  color: #6b3fa0;
+}
+
+.hotDot {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e8a317;
+  box-shadow: 0 0 0 1px #1a1410;
+}
+
 .dirt {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.empty {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: #2a4a32;
+  color: #f3ead8;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .apron {

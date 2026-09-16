@@ -22,9 +22,15 @@ const hasSpecialist = computed(() => game.hospital.rooms.some((r) => r.type === 
     <div class="card">
       <p class="kicker">城市特殊病人</p>
       <h2>本市出现了「{{ name }}」病人。</h2>
-      <p class="sub">必须选一项。还剩 {{ deadline }}，超时按转出处理。</p>
+      <p class="sub">必须选一项。要约还剩 {{ deadline }}（demo 2 分钟），超时按转出处理。本周大约每 80 秒来一个。</p>
       <div class="choices">
-        <button type="button" @click="game.chooseOffer('accept')">接诊。按本周配方走产线，治好拿钱和周分。</button>
+        <button type="button" autofocus @click="game.chooseOffer('accept')">
+          {{
+            city.recipeId === 'continue'
+              ? '接诊。跨院续治必须先转过一次才能进专科，第一家多半走不通，治好才拿钱和周分。'
+              : '接诊。按本周配方走产线，治好拿钱和周分。'
+          }}
+        </button>
         <button type="button" @click="game.chooseOffer('transfer')">转出。拿 10 钱情报费，对手去抢。</button>
         <button type="button" @click="game.chooseOffer('recipe')">
           {{

@@ -43,7 +43,7 @@ onUnmounted(() => {
     <WeekBar />
     <BuildBar />
     <SkillBar />
-    <p v-if="game.notice" class="notice">{{ game.notice }}</p>
+    <p v-if="game.notice" class="notice" role="status" aria-live="polite">{{ game.notice }}</p>
     <Board />
     <RoomPanel />
     <p class="hint">
@@ -60,7 +60,7 @@ onUnmounted(() => {
                   ? '手术室：先点第一格，再点相邻格。'
                   : game.hospital.fame <= 0
                     ? '口碑到 0：日常进场停了。事件卡、场内出院或周结算才能拉回来。特殊病人仍可三选一。'
-                    : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 开急诊，100 开周赛 / 专科 / 截诊。试玩加 ?week=1。'
+                    : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 开急诊，100 开周赛 / 专科 / 截诊。试玩加 ?week=1 会把出院至少拉到 100。'
       }}
     </p>
     <OfflineSummary />
@@ -82,6 +82,18 @@ onUnmounted(() => {
   background:
     radial-gradient(ellipse at 50% -10%, #2a4f4f 0%, transparent 55%),
     var(--night);
+}
+
+@media (max-width: 520px) {
+  .shell {
+    gap: 8px;
+    padding: 12px 10px 20px;
+  }
+
+  h1 {
+    font-size: 22px;
+    letter-spacing: 0.08em;
+  }
 }
 
 .mast {

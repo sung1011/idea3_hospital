@@ -15,11 +15,13 @@ const game = useGameStore()
       class="chip"
       :class="{ on: game.buildType === type, locked: !isUnlocked(game.hospital, type) }"
       :disabled="!isUnlocked(game.hospital, type)"
-      :title="isUnlocked(game.hospital, type) ? '' : `${unlockAt(type)} 出院解锁`"
+      :aria-pressed="game.buildType === type"
+      :aria-label="isUnlocked(game.hospital, type) ? `${ROOM_LABEL[type]} ${ROOM_DEF[type].cost} 钱` : `${ROOM_LABEL[type]} ${unlockAt(type)} 出院解锁`"
+      :title="isUnlocked(game.hospital, type) ? `${ROOM_DEF[type].cost} 钱` : `${unlockAt(type)} 出院解锁`"
       @click="game.pickBuild(type)"
     >
       {{ ROOM_LABEL[type] }}
-      <em>{{ ROOM_DEF[type].cost }}</em>
+      <em>{{ isUnlocked(game.hospital, type) ? ROOM_DEF[type].cost : `${unlockAt(type)}出院` }}</em>
     </button>
   </div>
 </template>

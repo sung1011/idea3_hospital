@@ -268,17 +268,25 @@ export function stepNeeds(h: Hospital) {
       leavePatient(h, p)
       continue
     }
-    if (p.stage >= 3 && !inCareRoom(h, p)) {
+    if (p.stage >= 3 && !hasReceivedCare(h, p)) {
       killPatient(h, p)
     }
   }
 }
 
-/** 已进入治疗 / 手术 / 专科 / 病房（含排队），不再按「病情 3 未进治疗」处死。 */
+const CARE_ROOMS = new Set(['treatment', 'surgery', 'specialist', 'ward'])
+
+/** 当前正在治疗 / 手术 / 专科 / 病房（含排队）。 */
 export function inCareRoom(h: Hospital, p: Patient): boolean {
   if (!p.inRoomId) return false
   const room = h.rooms.find((r) => r.id === p.inRoomId)
-  return !!room && (room.type === 'treatment' || room.type === 'surgery' || room.type === 'specialist' || room.type === 'ward')
+  return !!room && CARE_ROOMS.has(room.type)
+}
+
+/** 已经进过护理房（含排队、治疗中、以及之后去药房的路上）。不再按「病情 3 未进治疗」处死。 */
+export function hasReceivedCare(h: Hospital, p: Patient): boolean {
+  if (p.path.slice(0, p.node).some((t) => CARE_ROOMS.has(t))) return true
+  return inCareRoom(h, p)
 }
 
 export function stepWard(h: Hospital) {

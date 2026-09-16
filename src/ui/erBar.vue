@@ -18,6 +18,8 @@ const remain = computed(() => Math.max(0, ER_UNLOCK_AT - game.hospital.discharge
       v-if="unlocked"
       type="button"
       :class="{ on: open }"
+      :aria-pressed="open"
+      :aria-label="open ? `关闭急诊口，退 ${ER_CLOSE_REFUND}` : `开启急诊口，花 ${ER_OPEN_COST}`"
       @click="game.toggleEr()"
     >
       {{ open ? `关闭 · 退 ${ER_CLOSE_REFUND}` : `开启 · 花 ${ER_OPEN_COST}` }}

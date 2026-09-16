@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRoom } from './build'
 import { createHospital } from './createHospital'
 import { backfillEvent } from './events'
+import { makePatient } from './flow'
 import { offlineSeconds, settleOffline } from './offline'
 import { castSkill, getSkill } from './skills'
 import { assignDoctor, unassignDoctor } from './staff'
@@ -27,10 +28,13 @@ describe('offlineSeconds', () => {
     expect(offlineSeconds(1000, 1999)).toBe(0)
     expect(offlineSeconds(1000, 2500)).toBe(1)
     expect(offlineSeconds(5000, 1000)).toBe(0)
+    expect(offlineSeconds(0, 1_000_000)).toBe(0)
+    expect(offlineSeconds(-12, 1_000_000)).toBe(0)
+    expect(offlineSeconds(Number.NaN, 1_000_000)).toBe(0)
   })
 
   it('caps at 8 hours (28800 ticks)', () => {
-    const now = 1_000_000
+    const now = 1_700_000_000_000
     expect(offlineSeconds(now - 10 * 3600 * 1000, now)).toBe(OFFLINE_CAP_S)
     expect(OFFLINE_CAP_S).toBe(28800)
     expect(offlineSeconds(now - OFFLINE_CAP_S * 1000, now)).toBe(OFFLINE_CAP_S)
@@ -72,8 +76,36 @@ describe('settleOffline catch-up', () => {
     expect(result.summary.done).toBe(0)
   })
 
+  it('does not treat lastTick 0 as an 8-hour gap', () => {
+    const h = createHospital()
+    h.eventIn = 99999
+    h.lastTick = 0
+    const result = settleOffline(h, 1_000_000)
+    expect(result.summary.seconds).toBe(0)
+    expect(result.hospital.elapsedS).toBe(h.elapsedS)
+  })
+
+  it('counts a cured special in 完成 even though discharged stays put', () => {
+    const now = 9_000_000
+    const h = line()
+    const p = makePatient(h, 'special')
+    p.isSpecial = true
+    p.recipeId = 'isolate'
+    p.state = 'walk'
+    p.toDoor = true
+    p.walkRemain = 0
+    p.walkTotal = 0
+    h.patients.push(p)
+    h.lastTick = now - 3000
+    const discharged = h.discharged
+    const result = settleOffline(h, now)
+    expect(result.hospital.discharged).toBe(discharged)
+    expect(result.summary.done).toBeGreaterThanOrEqual(1)
+    expect(result.summary.seconds).toBe(3)
+  })
+
   it('caps catch-up at 28800 ticks even if lastTick is 10 hours ago', () => {
-    const now = 20_000_000
+    const now = 1_700_000_000_000
     const h = createHospital()
     h.eventIn = 99999
     h.lastTick = now - 10 * 3600 * 1000

@@ -93,6 +93,49 @@ describe('tick', () => {
     expect(next.patients.some((p) => p.id === queued.id && p.state === 'dead')).toBe(false)
   })
 
+  it('does not kill a stage-3 patient who already left a care room', () => {
+    const h = line()
+    const pharm = h.rooms.find((r) => r.type === 'pharmacy')!
+    const walking = makePatient(h, 'cold')
+    walking.stage = 3
+    walking.node = 3
+    walking.state = 'walk'
+    walking.x = 2
+    walking.y = 2
+    walking.walkFromX = 2
+    walking.walkFromY = 2
+    walking.walkToX = 2
+    walking.walkToY = 1
+    walking.walkRemain = 2
+    walking.walkTotal = 2
+    walking.toRoomId = pharm.id
+    const queued = makePatient(h, 'cold')
+    queued.stage = 3
+    queued.node = 3
+    queued.state = 'queue'
+    queued.inRoomId = pharm.id
+    pharm.queue.push(queued.id)
+    h.patients.push(walking, queued)
+    const next = tick(h)
+    expect(next.deadCount).toBe(0)
+    expect(next.patients.some((p) => p.id === walking.id && p.state === 'dead')).toBe(false)
+    expect(next.patients.some((p) => p.id === queued.id && p.state === 'dead')).toBe(false)
+  })
+
+  it('still kills a stage-3 patient who has not reached care', () => {
+    const h = line()
+    const diag = h.rooms.find((r) => r.type === 'diagnosis')!
+    const p = makePatient(h, 'cold')
+    p.stage = 3
+    p.node = 1
+    p.state = 'queue'
+    p.inRoomId = diag.id
+    diag.queue.push(p.id)
+    h.patients.push(p)
+    const next = tick(h)
+    expect(next.deadCount).toBe(1)
+  })
+
   it('leaves when the next room is missing and rage is high', () => {
     const h = createHospital()
     h.rollMode = 'always'

@@ -45,6 +45,18 @@ describe('event choices', () => {
     expect(h.patients.length).toBe(MAX_FIELD + 1)
   })
 
+  it('prefers a staffed room when a doctor is on duty', () => {
+    const h = createHospital()
+    h.eventIn = 99999
+    h.rng = 1
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])
+    assignDoctor(h, h.doctors[0].id, h.rooms[1].id)
+    h.pendingEvent = 'raise'
+    expect(chooseEvent(h, 'right').ok).toBe(true)
+    expect(h.buffs).toEqual([expect.objectContaining({ kind: 'roomVacant', roomId: h.rooms[1].id })])
+  })
+
   it('does not park a raise vacant buff on the waiting hall', () => {
     const h = createHospital()
     h.discharged = 15
