@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildRoom } from './build'
 import { createHospital } from './createHospital'
-import { availableEvents, chooseEvent } from './events'
+import { availableEvents, backfillEvent, chooseEvent } from './events'
 import { makePatient } from './flow'
+import { ticks } from './tick'
 import { assignDoctor } from './staff'
 import { MAX_FIELD } from './tables'
 import type { Hospital } from './types'
@@ -27,6 +28,17 @@ describe('availableEvents', () => {
 
     early.discharged = 80
     expect(availableEvents(early)).toEqual(expect.arrayContaining(['infectAdmit', 'vipCut']))
+  })
+})
+
+describe('event timing', () => {
+  it('does not deal a card before a reception exists', () => {
+    const h = createHospital()
+    h.eventIn = 1
+    const next = ticks(h, 40)
+    expect(next.pendingEvent).toBeNull()
+    expect(backfillEvent(next)).toBe(false)
+    expect(next.pendingEvent).toBeNull()
   })
 })
 
