@@ -7,6 +7,14 @@ import { useGameStore } from './gameStore'
 const game = useGameStore()
 const city = computed(() => pendingOffer(game.hospital))
 const name = computed(() => (city.value ? RECIPE[city.value.recipeId].name : ''))
+const deadline = computed(() => {
+  if (!city.value) return ''
+  const s = Math.max(0, Math.ceil((city.value.offerDeadline - Date.now()) / 1000))
+  const m = Math.floor(s / 60)
+  const sec = s % 60
+  return `${m}:${String(sec).padStart(2, '0')}`
+})
+const hasSpecialist = computed(() => game.hospital.rooms.some((r) => r.type === 'specialist'))
 </script>
 
 <template>
@@ -14,11 +22,17 @@ const name = computed(() => (city.value ? RECIPE[city.value.recipeId].name : '')
     <div class="card">
       <p class="kicker">城市特殊病人</p>
       <h2>本市出现了「{{ name }}」病人。</h2>
-      <p class="sub">必须选一项。倒计时结束按转出处理。</p>
+      <p class="sub">必须选一项。还剩 {{ deadline }}，超时按转出处理。</p>
       <div class="choices">
         <button type="button" @click="game.chooseOffer('accept')">接诊。按本周配方走产线，治好拿钱和周分。</button>
         <button type="button" @click="game.chooseOffer('transfer')">转出。拿 10 钱情报费，对手去抢。</button>
-        <button type="button" @click="game.chooseOffer('recipe')">改配方。专科立刻套上本周配方，病人转给下一家。</button>
+        <button type="button" @click="game.chooseOffer('recipe')">
+          {{
+            hasSpecialist
+              ? '改配方。专科立刻套上本周配方，病人转给下一家。'
+              : '改配方。还没建专科：先记下本周配方，建好自动套上。病人转给下一家。'
+          }}
+        </button>
       </div>
     </div>
   </div>

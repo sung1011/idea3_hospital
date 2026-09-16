@@ -8,6 +8,7 @@ import {
   SPAWN_BASE_S,
   SPAWN_MIN_S,
   UNLOCK_AT,
+  UNLOCK_LABEL,
 } from './tables'
 import type { Hospital, Patient, Room, RoomType, Tile, UnlockKey } from './types'
 
@@ -26,6 +27,22 @@ export function addFame(h: Hospital, delta: number) {
 
 export function isUnlocked(h: Hospital, key: UnlockKey): boolean {
   return UNLOCK_AT.some((row) => h.discharged >= row.at && row.keys.includes(key))
+}
+
+export function unlockAt(key: UnlockKey): number {
+  return UNLOCK_AT.find((row) => row.keys.includes(key))?.at ?? 0
+}
+
+export function nextUnlock(h: Hospital): { at: number; keys: UnlockKey[] } | null {
+  return UNLOCK_AT.find((row) => h.discharged < row.at) ?? null
+}
+
+export function nextUnlockHint(h: Hospital): string | null {
+  const row = nextUnlock(h)
+  if (!row) return null
+  const names = row.keys.map((k) => UNLOCK_LABEL[k]).filter((s): s is string => !!s)
+  if (!names.length) return `再出院 ${row.at - h.discharged} 人解锁下一档`
+  return `下一档 ${row.at} 出院 · ${names.join(' / ')}`
 }
 
 export function nurseCoef(h: Hospital): number {

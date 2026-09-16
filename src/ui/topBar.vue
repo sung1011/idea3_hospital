@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { nextUnlockHint } from '../sim/query'
 import { useGameStore } from './gameStore'
 
 const game = useGameStore()
@@ -12,6 +13,8 @@ const clock = computed(() => {
   const pad = (n: number) => String(n).padStart(2, '0')
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
 })
+
+const unlockHint = computed(() => nextUnlockHint(game.hospital))
 </script>
 
 <template>
@@ -33,7 +36,10 @@ const clock = computed(() => {
       <span class="value">T+{{ clock }}</span>
     </div>
   </div>
-  <p class="tally">走人 {{ game.hospital.leftCount }} · 死亡 {{ game.hospital.deadCount }}</p>
+  <p class="tally">
+    走人 {{ game.hospital.leftCount }} · 死亡 {{ game.hospital.deadCount }}
+    <span v-if="unlockHint"> · {{ unlockHint }}</span>
+  </p>
 </template>
 
 <style scoped>

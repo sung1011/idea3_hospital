@@ -17,6 +17,7 @@ const remain = computed(() => {
   const sec = s % 60
   return `${m}:${String(sec).padStart(2, '0')}`
 })
+const remainUnlock = computed(() => Math.max(0, WEEK_UNLOCK_AT - game.hospital.discharged))
 const interceptOk = computed(() => canIntercept(game.hospital))
 const interceptTip = computed(() => interceptReason(game.hospital))
 const lastPlace = computed(() => {
@@ -39,10 +40,11 @@ const lastPlace = computed(() => {
         </span>
       </div>
       <button type="button" :disabled="!interceptOk" :title="interceptTip" @click="game.intercept()">
-        {{ interceptOk ? `截诊 · 口碑 ${INTERCEPT_FAME}` : interceptTip || '截诊' }}
+        {{ interceptOk ? `截诊 · 花 ${INTERCEPT_FAME} 口碑` : interceptTip || '截诊' }}
       </button>
     </template>
-    <em v-else>累计出院 {{ WEEK_UNLOCK_AT }} 解锁周赛 / 专科 / 截诊</em>
+    <em v-else-if="unlocked">周赛开启中…</em>
+    <em v-else>再出院 {{ remainUnlock }} 人解锁周赛 / 专科 / 截诊</em>
   </div>
 </template>
 

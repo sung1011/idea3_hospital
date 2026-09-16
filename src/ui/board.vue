@@ -282,4 +282,8 @@ const erOpen = computed(() => game.hospital.erOpen)
 .dot.erDot {
   box-shadow: 0 0 0 2px var(--iodine);
 }
+
+.dot.special.erDot {
+  box-shadow: 0 0 0 2px #7a1f28, 0 0 0 4px var(--iodine);
+}
 </style>

@@ -99,8 +99,8 @@ describe('settleOffline catch-up', () => {
 
     expect(goodS.summary.done).toBeGreaterThan(badS.summary.done)
     expect(goodS.hospital.money - good.money).toBeGreaterThan(badS.hospital.money - bad.money)
-    expect(badS.summary.dead).toBeGreaterThan(goodS.summary.dead)
-    expect(badS.summary.blockedLabel).toBeTruthy()
+    expect(badS.summary.done).toBe(0)
+    expect(badS.summary.blockedLabel).toBe('治疗室')
   })
 
   it('idle is not pure profit: unstaffed rooms still kill queued patients', () => {

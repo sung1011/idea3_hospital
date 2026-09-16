@@ -15,13 +15,15 @@ export function loadHospital(): Hospital | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Hospital
     if (!parsed || typeof parsed.lastTick !== 'number' || !Array.isArray(parsed.rooms)) return null
-    if (!Array.isArray(parsed.skills)) parsed.skills = createSkills()
+    if (!Array.isArray(parsed.skills) || parsed.skills.length === 0) parsed.skills = createSkills()
     if (!Array.isArray(parsed.hots)) parsed.hots = []
     if (!Array.isArray(parsed.buffs)) parsed.buffs = []
     if (!Array.isArray(parsed.patients)) parsed.patients = []
     if (!Array.isArray(parsed.doctors)) parsed.doctors = []
     if (typeof parsed.erOpen !== 'boolean') parsed.erOpen = false
     if (typeof parsed.interceptUsed !== 'boolean') parsed.interceptUsed = false
+    if (typeof parsed.eventIn !== 'number') parsed.eventIn = 90
+    if (typeof parsed.discharged !== 'number') parsed.discharged = 0
     if (!parsed.id) parsed.id = PLAYER_ID
     if (parsed.week === undefined) parsed.week = null
     for (const p of parsed.patients as Patient[]) {

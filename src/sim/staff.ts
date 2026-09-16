@@ -1,5 +1,5 @@
 import { nextId, stationSlots } from './query'
-import { HIRE_DOCTOR, HIRE_NURSE, MAX_NURSES } from './tables'
+import { HIRE_DOCTOR, HIRE_NURSE, MAX_NURSES, START_NURSES } from './tables'
 import type { ActionResult, Hospital } from './types'
 
 export function hireDoctor(h: Hospital): ActionResult {
@@ -31,8 +31,9 @@ export function fireDoctor(h: Hospital, doctorId: string): ActionResult {
 
 export function fireNurse(h: Hospital): ActionResult {
   if (h.nurses <= 0) return { ok: false, reason: '没有护士' }
+  const refund = h.nurses > START_NURSES ? Math.floor(HIRE_NURSE * 0.5) : 0
   h.nurses -= 1
-  h.money += Math.floor(HIRE_NURSE * 0.5)
+  h.money += refund
   return { ok: true }
 }
 

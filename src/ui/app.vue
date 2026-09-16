@@ -16,6 +16,11 @@ import WeekOffer from './weekOffer.vue'
 
 const game = useGameStore()
 const running = computed(() => hasReception(game.hospital))
+const shift = computed(() => {
+  if (game.hospital.fame <= 0) return '夜班 · 口碑见底，日常病人不进门'
+  if (!running.value) return '夜班 · 先放前台'
+  return '夜班 · 产线在转'
+})
 
 onMounted(() => {
   game.startClock()
@@ -29,7 +34,7 @@ onUnmounted(() => {
 <template>
   <div class="shell">
     <header class="mast">
-      <p class="shift">{{ running ? '夜班 · 产线在转' : '夜班 · 先放前台' }}</p>
+      <p class="shift">{{ shift }}</p>
       <h1>格子医院</h1>
     </header>
     <TopBar />
@@ -53,7 +58,9 @@ onUnmounted(() => {
                 ? '前台只能放底行、贴着正门的三格（有绿框的那些）。'
                 : game.buildType === 'surgery' && !game.surgeryFirst
                   ? '手术室：先点第一格，再点相邻格。'
-                  : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 开急诊，100 开周赛 / 专科 / 截诊。试玩加 ?week=1。'
+                  : game.hospital.fame <= 0
+                    ? '口碑到 0：日常进场停了。事件卡、场内出院或周结算才能拉回来。特殊病人仍可三选一。'
+                    : '选房间类型，点空地建造。点已建房派人、升级或卖掉。点技能再点地块清污染。累计出院 80 开急诊，100 开周赛 / 专科 / 截诊。试玩加 ?week=1。'
       }}
     </p>
     <OfflineSummary />

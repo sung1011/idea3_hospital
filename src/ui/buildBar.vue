@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { BUILD_ORDER, ROOM_DEF, ROOM_LABEL } from '../sim/tables'
-import { isUnlocked } from '../sim/query'
+import { isUnlocked, unlockAt } from '../sim/query'
 import { useGameStore } from './gameStore'
 
 const game = useGameStore()
@@ -15,6 +15,7 @@ const game = useGameStore()
       class="chip"
       :class="{ on: game.buildType === type, locked: !isUnlocked(game.hospital, type) }"
       :disabled="!isUnlocked(game.hospital, type)"
+      :title="isUnlocked(game.hospital, type) ? '' : `${unlockAt(type)} 出院解锁`"
       @click="game.pickBuild(type)"
     >
       {{ ROOM_LABEL[type] }}

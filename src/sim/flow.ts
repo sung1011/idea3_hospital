@@ -1,4 +1,4 @@
-import { applyErPath, cutsToFront, shouldMarkEr } from './er'
+import { applyErPath, cutsToFront, shouldMarkEr, skippedDiagnosis } from './er'
 import {
   addFame,
   actualThroughput,
@@ -98,10 +98,17 @@ export function pickDisease(h: Hospital): DiseaseId | null {
   return pool[pool.length - 1].id
 }
 
-export function spawnPatient(h: Hospital, disease?: DiseaseId, isEr?: boolean): Patient | null {
-  if (h.fame <= 0) return null
+export function spawnPatient(
+  h: Hospital,
+  disease?: DiseaseId,
+  isEr?: boolean,
+  opts?: { ignoreCap?: boolean },
+): Patient | null {
+  if (!opts?.ignoreCap) {
+    if (h.fame <= 0) return null
+    if (fieldCount(h) >= MAX_FIELD) return null
+  }
   if (!hasReception(h)) return null
-  if (fieldCount(h) >= MAX_FIELD) return null
   const id = disease ?? pickDisease(h)
   if (!id) return null
   const er = isEr ?? shouldMarkEr(h)
@@ -261,22 +268,17 @@ export function stepNeeds(h: Hospital) {
       leavePatient(h, p)
       continue
     }
-    if (p.stage >= 3 && !inCureRoom(h, p) && !inWard(h, p)) {
+    if (p.stage >= 3 && !inCareRoom(h, p)) {
       killPatient(h, p)
     }
   }
 }
 
-function inCureRoom(h: Hospital, p: Patient): boolean {
-  if (p.state !== 'treat' || !p.inRoomId) return false
-  const room = h.rooms.find((r) => r.id === p.inRoomId)
-  return !!room && (room.type === 'treatment' || room.type === 'surgery' || room.type === 'specialist')
-}
-
-function inWard(h: Hospital, p: Patient): boolean {
+/** 已进入治疗 / 手术 / 专科 / 病房（含排队），不再按「病情 3 未进治疗」处死。 */
+export function inCareRoom(h: Hospital, p: Patient): boolean {
   if (!p.inRoomId) return false
   const room = h.rooms.find((r) => r.id === p.inRoomId)
-  return room?.type === 'ward'
+  return !!room && (room.type === 'treatment' || room.type === 'surgery' || room.type === 'specialist' || room.type === 'ward')
 }
 
 export function stepWard(h: Hospital) {
@@ -374,7 +376,7 @@ export function treatChance(room: Room, p: Patient): number {
   if (room.type === 'treatment') chance = SUCCESS.treatment
   else if (room.type === 'surgery') chance = SUCCESS.surgery
   else if (room.type === 'specialist') chance = SUCCESS.specialist
-  if (p.isEr && (room.type === 'treatment' || room.type === 'surgery')) chance *= ER_SUCCESS_MUL
+  if (skippedDiagnosis(p) && (room.type === 'treatment' || room.type === 'surgery')) chance *= ER_SUCCESS_MUL
   return chance
 }
 

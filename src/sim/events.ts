@@ -1,8 +1,16 @@
 import { spawnPatient } from './flow'
-import { addFame } from './query'
+import { addFame, isUnlocked } from './query'
 import { pick, randInt } from './rng'
 import { EVENT_IDS } from './tables'
 import type { ActionResult, EventId, Hospital } from './types'
+
+export function availableEvents(h: Hospital): EventId[] {
+  return EVENT_IDS.filter((id) => {
+    if (id === 'infectAdmit') return isUnlocked(h, 'infectious')
+    if (id === 'vipCut') return isUnlocked(h, 'vip')
+    return true
+  })
+}
 
 export function stepEvents(h: Hospital, opts: { spawn?: boolean } = {}) {
   for (const buff of h.buffs) buff.remainS -= 1
@@ -10,7 +18,9 @@ export function stepEvents(h: Hospital, opts: { spawn?: boolean } = {}) {
   if (h.pendingEvent) return
   if (h.eventIn > 0) h.eventIn -= 1
   if (h.eventIn <= 0 && opts.spawn !== false) {
-    h.pendingEvent = pick(h, EVENT_IDS)
+    const pool = availableEvents(h)
+    if (!pool.length) return
+    h.pendingEvent = pick(h, pool)
     h.eventIn = randInt(h, 90, 150)
   }
 }
@@ -18,7 +28,9 @@ export function stepEvents(h: Hospital, opts: { spawn?: boolean } = {}) {
 /** 上线最多补 1 张。已有待处理卡或倒计时未到则不补。 */
 export function backfillEvent(h: Hospital): boolean {
   if (h.pendingEvent || h.eventIn > 0) return false
-  h.pendingEvent = pick(h, EVENT_IDS)
+  const pool = availableEvents(h)
+  if (!pool.length) return false
+  h.pendingEvent = pick(h, pool)
   h.eventIn = randInt(h, 90, 150)
   return true
 }
@@ -38,7 +50,7 @@ function applyEvent(h: Hospital, id: EventId, side: 'left' | 'right') {
     return
   }
   if (id === 'vipCut') {
-    if (side === 'left') spawnPatient(h, 'vip')
+    if (side === 'left') spawnPatient(h, 'vip', undefined, { ignoreCap: true })
     else addFame(h, 3)
     return
   }
@@ -66,8 +78,9 @@ function applyEvent(h: Hospital, id: EventId, side: 'left' | 'right') {
     if (side === 'left') {
       h.money -= 30
       h.buffs.push({ kind: 'doctorSpeed', remainS: 180, mul: 1.2 })
-    } else if (h.rooms.length) {
-      h.buffs.push({ kind: 'roomVacant', remainS: 60, roomId: pick(h, h.rooms).id })
+    } else {
+      const rooms = h.rooms.filter((r) => r.type !== 'waiting')
+      if (rooms.length) h.buffs.push({ kind: 'roomVacant', remainS: 60, roomId: pick(h, rooms).id })
     }
     return
   }

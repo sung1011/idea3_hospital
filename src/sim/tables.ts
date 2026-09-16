@@ -71,12 +71,31 @@ export const SUCCESS = {
 export const ROOM_LABEL: Record<RoomType, string> = {
   reception: '前台',
   diagnosis: '诊断',
-  treatment: '治疗',
-  surgery: '手术',
+  treatment: '治疗室',
+  surgery: '手术室',
   pharmacy: '药房',
   ward: '病房',
-  specialist: '专科',
-  waiting: '候诊',
+  specialist: '专科室',
+  waiting: '候诊厅',
+}
+
+export const UNLOCK_LABEL: Partial<Record<UnlockKey, string>> = {
+  ward: '病房',
+  waiting: '候诊厅',
+  disinfect: '消毒',
+  sustain: '持续消毒',
+  fracture: '骨折',
+  surgery: '手术室',
+  flush: '冲洗',
+  infectious: '传染病',
+  spray: '喷雾',
+  vip: 'VIP',
+  compact: '紧凑设备',
+  er: '急诊口',
+  specialist: '专科室',
+  week: '周赛',
+  intercept: '截诊',
+  dual: '双工位',
 }
 
 export const DISEASE_LABEL: Record<DiseaseId, string> = {
@@ -212,32 +231,32 @@ export const EVENT_IDS: EventId[] = ['infectAdmit', 'vipCut', 'inspect', 'vendor
 export const EVENT_TEXT: Record<EventId, { title: string; left: string; right: string }> = {
   infectAdmit: {
     title: '门口来了一群发热病人，收不收？',
-    left: '收。3 分钟内传染病更多。',
+    left: '收。之后 3 分钟传染病权重 ×3。',
     right: '拒。口碑 -6。',
   },
   vipCut: {
     title: '有人要插队，说是董事的亲戚。',
-    left: '让。立刻进 1 个 VIP。',
-    right: '不让。口碑 +3。',
+    left: '让。立刻进场 1 个 VIP（可超当日上限）。',
+    right: '不让。口碑 +3，不加钱。',
   },
   inspect: {
     title: '检查团在楼下。',
-    left: '打扫。所有房污染 -20，钱 -40。',
-    right: '硬扛。有房污染 ≥50 则口碑 -10。',
+    left: '打扫一天。所有房污染 -20，钱 -40。',
+    right: '硬扛。若任一房污染 ≥50，口碑 -10。',
   },
   vendor: {
     title: '设备商堵在值班室推销。',
-    left: '买。钱 -80，随机一间房吞吐 ×1.3，持续 3 分钟。',
-    right: '不买。',
+    left: '买。钱 -80，随机一间已建房吞吐 ×1.3，持续 3 分钟。',
+    right: '不买。无事。',
   },
   raise: {
     title: '医生要加薪。',
-    left: '加。钱 -30，全体速度 ×1.2，持续 3 分钟。',
-    right: '不加。随机一间房空岗 60 秒。',
+    left: '加。钱 -30，全体医生速度 ×1.2，持续 3 分钟。',
+    right: '不加。随机一间有工位的房空岗 60 秒。',
   },
   media: {
     title: '媒体要来拍产线。',
-    left: '开放。3 分钟内进场更快。',
-    right: '谢绝。',
+    left: '开放。之后 3 分钟进场间隔 ×0.7（人更多）。',
+    right: '谢绝。无事。',
   },
 }

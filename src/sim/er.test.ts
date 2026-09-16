@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildRoom } from './build'
 import { createHospital } from './createHospital'
-import { applyErPath, setErOpen, shouldMarkEr, toggleEr } from './er'
+import { applyErPath, applySpecialErPath, setErOpen, shouldMarkEr, skippedDiagnosis, toggleEr } from './er'
 import { arrivePatient, makePatient, routePatient, spawnPatient, treatChance } from './flow'
 import { isUnlocked } from './query'
 import { assignDoctor } from './staff'
@@ -208,11 +208,38 @@ describe('er success penalty', () => {
     }
     const normal = makePatient(h, 'cold')
     const er = makePatient(h, 'cold', true)
+    applyErPath(er)
     expect(treatChance(room, normal)).toBe(SUCCESS.treatment)
     expect(treatChance(room, er)).toBeCloseTo(SUCCESS.treatment * ER_SUCCESS_MUL)
 
     const surgery = { ...room, type: 'surgery' as const }
     const bone = makePatient(h, 'fracture', true)
+    applyErPath(bone)
     expect(treatChance(surgery, bone)).toBeCloseTo(SUCCESS.surgery * ER_SUCCESS_MUL)
+  })
+
+  it('does not penalize a special ER patient who still has diagnosis on the path', () => {
+    const h = createHospital()
+    const surgery = {
+      id: 's',
+      type: 'surgery' as const,
+      tiles: [{ r: 0, c: 0 }],
+      levelFlags: { queuePlus2: false, dualStation: false, compact: false },
+      doctorIds: [],
+      queue: [],
+      pollution: 0,
+      builtCost: 0,
+      upgradeSpent: 0,
+      progress: 0,
+    }
+    const special = makePatient(h, 'special', true)
+    special.isSpecial = true
+    special.recipeId = 'micro'
+    special.path = ['reception', 'diagnosis', 'surgery', 'specialist', 'pharmacy']
+    applySpecialErPath(special)
+    expect(special.path[0]).toBe('diagnosis')
+    expect(skippedDiagnosis(special)).toBe(false)
+    special.node = 1
+    expect(treatChance(surgery, special)).toBe(SUCCESS.surgery)
   })
 })

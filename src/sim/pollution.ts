@@ -24,7 +24,7 @@ export function stepPollution(h: Hospital) {
       if (room.pollution < POLLUTE_CONVERT_AT) continue
       for (const id of room.queue) {
         const p = h.patients.find((x) => x.id === id)
-        if (!p || p.disease === 'infectious') continue
+        if (!p || p.disease === 'infectious' || p.isSpecial) continue
         if (roll(h, CONVERT_CHANCE)) rewriteInfectious(p)
       }
     }

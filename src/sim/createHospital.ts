@@ -1,6 +1,6 @@
 import { randInt } from './rng'
 import { createSkills } from './skills'
-import { HIRE_DOCTOR, PLAYER_ID, START_DOCTORS, START_FAME, START_MONEY, START_NURSES } from './tables'
+import { PLAYER_ID, START_DOCTORS, START_FAME, START_MONEY, START_NURSES } from './tables'
 import type { Hospital } from './types'
 
 export function createHospital(id = PLAYER_ID): Hospital {
@@ -12,7 +12,7 @@ export function createHospital(id = PLAYER_ID): Hospital {
     doctors: Array.from({ length: START_DOCTORS }, (_, i) => ({
       id: `doc-${i + 1}`,
       roomId: null,
-      hireCost: HIRE_DOCTOR,
+      hireCost: 0,
     })),
     rooms: [],
     patients: [],

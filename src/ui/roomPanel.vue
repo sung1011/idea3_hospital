@@ -18,16 +18,19 @@ const room = computed(() => game.selectedRoom)
       <span v-if="room.type === 'specialist' && room.recipeId">配方 {{ RECIPE[room.recipeId].name }}</span>
     </header>
     <div class="row">
-      <button type="button" @click="game.assignIdleDoctor()">派空闲医生</button>
-      <button
-        v-for="id in room.doctorIds"
-        :key="id"
-        type="button"
-        @click="game.unassignDoctor(id)"
-      >
-        撤 {{ id }}
-      </button>
-      <span class="muted">工位 {{ room.doctorIds.length }}/{{ stationSlots(room) }}</span>
+      <template v-if="room.type !== 'waiting'">
+        <button type="button" @click="game.assignIdleDoctor()">派空闲医生</button>
+        <button
+          v-for="id in room.doctorIds"
+          :key="id"
+          type="button"
+          @click="game.unassignDoctor(id)"
+        >
+          撤下
+        </button>
+        <span class="muted">工位 {{ room.doctorIds.length }}/{{ stationSlots(room) }}</span>
+      </template>
+      <span v-else class="muted">候诊厅是箱子，不用派医生。</span>
     </div>
     <div class="row">
       <button type="button" :disabled="room.levelFlags.queuePlus2" @click="game.upgradeQueue()">
@@ -37,6 +40,7 @@ const room = computed(() => game.selectedRoom)
         v-if="room.type !== 'waiting'"
         type="button"
         :disabled="room.levelFlags.dualStation || !isUnlocked(game.hospital, 'dual')"
+        :title="room.levelFlags.dualStation ? '已升级' : isUnlocked(game.hospital, 'dual') ? '' : '120 出院解锁'"
         @click="game.upgradeDual()"
       >
         双工位 · {{ UPGRADE_DUAL }}
@@ -45,6 +49,7 @@ const room = computed(() => game.selectedRoom)
         v-if="room.type === 'surgery'"
         type="button"
         :disabled="room.levelFlags.compact || !isUnlocked(game.hospital, 'compact')"
+        :title="room.levelFlags.compact ? '已升级' : isUnlocked(game.hospital, 'compact') ? '' : '80 出院解锁'"
         @click="game.upgradeCompact()"
       >
         紧凑 · {{ UPGRADE_COMPACT }}

@@ -8,6 +8,7 @@ const game = useGameStore()
 
 const unlocked = computed(() => isUnlocked(game.hospital, 'er'))
 const open = computed(() => game.hospital.erOpen)
+const remain = computed(() => Math.max(0, ER_UNLOCK_AT - game.hospital.discharged))
 </script>
 
 <template>
@@ -19,9 +20,9 @@ const open = computed(() => game.hospital.erOpen)
       :class="{ on: open }"
       @click="game.toggleEr()"
     >
-      {{ open ? `关闭 · 退 ${ER_CLOSE_REFUND}` : `开启 · ${ER_OPEN_COST}` }}
+      {{ open ? `关闭 · 退 ${ER_CLOSE_REFUND}` : `开启 · 花 ${ER_OPEN_COST}` }}
     </button>
-    <em v-else>累计出院 {{ ER_UNLOCK_AT }} 解锁</em>
+    <em v-else>再出院 {{ remain }} 人解锁急诊口</em>
   </div>
 </template>
 

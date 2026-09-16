@@ -85,6 +85,10 @@ export const useGameStore = defineStore('game', () => {
       demoUnlockWeek(next)
       stepWeek(next, Date.now())
       hospital.value = next
+    } else if (isUnlocked(hospital.value, 'week')) {
+      const next = cloneHospital(hospital.value)
+      stepWeek(next, Date.now())
+      hospital.value = next
     }
     persist()
   }

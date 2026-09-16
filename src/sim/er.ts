@@ -30,6 +30,11 @@ export function shouldMarkEr(h: Hospital): boolean {
   return rand(h) < ER_CHANCE
 }
 
+/** 急诊惩罚只打「跳过诊断」的人。特殊病人走急诊仍留诊断，不吃这刀。 */
+export function skippedDiagnosis(p: Patient): boolean {
+  return p.isEr && !p.path.includes('diagnosis')
+}
+
 export function cutsToFront(p: Patient, roomType: RoomType): boolean {
   if (p.disease === 'vip') return true
   if (p.isSpecial && p.isEr) return p.node === 0 && roomType === p.path[0]

@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { buildRoom, sellRoom, upgradeQueue } from './build'
 import { createHospital } from './createHospital'
 import { chooseEvent } from './events'
-import { spawnPatient, walkDuration } from './flow'
-import { pollutionCoef } from './query'
-import { assignDoctor, hireNurse } from './staff'
+import { makePatient, spawnPatient, walkDuration } from './flow'
+import { nextUnlockHint, pollutionCoef } from './query'
+import { stepPollution } from './pollution'
+import { assignDoctor, fireDoctor, fireNurse, hireNurse } from './staff'
 import { START_DOCTORS, START_FAME, START_MONEY } from './tables'
 import { tick, ticks } from './tick'
 import type { Hospital } from './types'
@@ -33,6 +34,8 @@ describe('createHospital', () => {
     expect(hospital.hots).toEqual([])
     expect(hospital.id).toBe('player')
     expect(hospital.week).toBeNull()
+    expect(hospital.doctors.every((d) => d.hireCost === 0)).toBe(true)
+    expect(nextUnlockHint(hospital)).toContain('病房')
   })
 })
 
@@ -70,6 +73,24 @@ describe('tick', () => {
     h.fame = 0
     const next = ticks(h, 20)
     expect(next.patients).toHaveLength(0)
+  })
+
+  it('does not kill a stage-3 patient already queued in treatment', () => {
+    const h = line()
+    const treat = h.rooms.find((r) => r.type === 'treatment')!
+    const head = makePatient(h, 'cold')
+    const queued = makePatient(h, 'cold')
+    head.stage = 3
+    queued.stage = 3
+    head.state = 'treat'
+    queued.state = 'queue'
+    head.inRoomId = treat.id
+    queued.inRoomId = treat.id
+    treat.queue.push(head.id, queued.id)
+    h.patients.push(head, queued)
+    const next = tick(h)
+    expect(next.deadCount).toBe(0)
+    expect(next.patients.some((p) => p.id === queued.id && p.state === 'dead')).toBe(false)
   })
 
   it('leaves when the next room is missing and rage is high', () => {
@@ -122,6 +143,46 @@ describe('staff and pollution', () => {
     h.money = 80
     expect(hireNurse(h).ok).toBe(true)
     expect(h.nurses).toBe(2)
+  })
+
+  it('does not refund gifted starting staff', () => {
+    const h = createHospital()
+    const money = h.money
+    expect(fireNurse(h).ok).toBe(true)
+    expect(h.nurses).toBe(0)
+    expect(h.money).toBe(money)
+    expect(fireDoctor(h, h.doctors[0].id).ok).toBe(true)
+    expect(h.money).toBe(money)
+  })
+
+  it('refunds half after a hired nurse', () => {
+    const h = createHospital()
+    expect(hireNurse(h).ok).toBe(true)
+    const money = h.money
+    expect(fireNurse(h).ok).toBe(true)
+    expect(h.nurses).toBe(1)
+    expect(h.money).toBe(money + 40)
+  })
+
+  it('does not rewrite a week-match patient into infectious', () => {
+    const h = createHospital()
+    h.eventIn = 99999
+    h.rollMode = 'always'
+    h.elapsedS = 30
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    h.rooms[0].pollution = 80
+    const p = makePatient(h, 'special')
+    p.isSpecial = true
+    p.recipeId = 'isolate'
+    p.path = ['reception', 'diagnosis', 'ward', 'specialist', 'pharmacy']
+    p.state = 'queue'
+    p.inRoomId = h.rooms[0].id
+    h.patients.push(p)
+    h.rooms[0].queue.push(p.id)
+    stepPollution(h)
+    expect(p.disease).toBe('special')
+    expect(p.isSpecial).toBe(true)
+    expect(p.path).toEqual(['reception', 'diagnosis', 'ward', 'specialist', 'pharmacy'])
   })
 
   it('pollution coefficient drops after 30', () => {
