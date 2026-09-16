@@ -3,8 +3,8 @@ import { backfillEvent } from './events'
 import { actualThroughput, isUnlocked, queueCap } from './query'
 import { OFFLINE_CAP_S, ROOM_LABEL } from './tables'
 import { applyTick } from './tick'
-import { stepWeek, tickRivals } from './week'
-import type { Hospital, Room, RoomType } from './types'
+import { backfillWeekOffer, payWeekRanks, stepWeek, tickRivals } from './week'
+import type { Hospital, Room, RoomType, WeekRank } from './types'
 
 export type OfflineSummary = {
   seconds: number
@@ -109,6 +109,7 @@ export function settleOffline(hospital: Hospital, now = Date.now()): OfflineResu
   const h = cloneHospital(hospital)
   const startedAt = hospital.lastTick
   let specialDone = 0
+  let firstContested: WeekRank[] | null = null
 
   for (let i = 0; i < seconds; i++) {
     const seen = new Set(h.patients.filter((p) => p.isSpecial && p.state === 'done').map((p) => p.id))
@@ -118,10 +119,15 @@ export function settleOffline(hospital: Hospital, now = Date.now()): OfflineResu
       if (p.isSpecial && p.state === 'done' && !seen.has(p.id)) specialDone += 1
     }
     tickRivals(h, { now: t, spawnEvents: false })
-    stepWeek(h, t)
+    const ranks = stepWeek(h, t, { payRewards: false, playerOffers: false })
+    if (ranks && !firstContested) firstContested = ranks
     noteBlocked(h, roomAcc, typeAcc)
   }
 
+  const tail = stepWeek(h, now, { payRewards: false, playerOffers: false })
+  if (tail && !firstContested) firstContested = tail
+  if (firstContested) payWeekRanks(h, firstContested)
+  backfillWeekOffer(h, now)
   backfillEvent(h)
   h.lastTick = now
 

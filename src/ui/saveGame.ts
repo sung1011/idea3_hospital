@@ -222,6 +222,12 @@ export function migrateHospital(
     hots: migrateHots(parsed.hots),
     week: opts.nested ? null : migrateWeek(parsed.week, now),
   }
+  if (hospital.week) {
+    const recipe = hospital.week.pendingRecipeId ?? hospital.week.recipeId
+    for (const room of hospital.rooms) {
+      if (room.type === 'specialist' && !room.recipeId) room.recipeId = recipe
+    }
+  }
   return hospital
 }
 

@@ -18,7 +18,7 @@ const refund = computed(() => {
       <strong>{{ ROOM_LABEL[room.type] }}</strong>
       <span>队 {{ room.queue.length }}/{{ queueCap(room) }}</span>
       <span>污 {{ Math.round(room.pollution) }}</span>
-      <span v-if="room.type !== 'waiting'">吞吐 {{ actualThroughput(game.hospital, room).toFixed(1) }}</span>
+      <span v-if="room.type !== 'waiting'">吞吐 {{ actualThroughput(game.hospital, room).toFixed(1) }}/分</span>
       <span v-if="room.type === 'specialist' && room.recipeId">配方 {{ RECIPE[room.recipeId].name }}</span>
     </header>
     <div class="row">

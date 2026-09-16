@@ -101,4 +101,28 @@ describe('migrateHospital', () => {
     )
     expect(h!.week).toBeNull()
   })
+
+  it('backfills a specialist recipe from the week so old saves can enter', () => {
+    const h = migrateHospital(
+      {
+        lastTick: 1000,
+        rooms: [{ id: 's', type: 'specialist', tiles: [{ r: 1, c: 2 }] }],
+        week: {
+          recipeId: 'micro',
+          pendingRecipeId: 'micro',
+          hospitalIds: ['player', 'npc-isolate'],
+          rivals: [
+            {
+              id: 'npc-isolate',
+              rooms: [{ id: 'nr', type: 'reception', tiles: [{ r: 4, c: 2 }] }],
+              doctors: [],
+            },
+          ],
+          cityQueue: [],
+        },
+      },
+      1000,
+    )
+    expect(h!.rooms[0].recipeId).toBe('micro')
+  })
 })

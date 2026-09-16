@@ -6,9 +6,10 @@ import { makePatient } from './flow'
 import { offlineSeconds, settleOffline } from './offline'
 import { castSkill, getSkill } from './skills'
 import { assignDoctor, unassignDoctor } from './staff'
-import { OFFLINE_CAP_S } from './tables'
+import { OFFLINE_CAP_S, SPECIAL_TRANSFER_FEE } from './tables'
 import { ticks } from './tick'
 import type { Hospital } from './types'
+import { demoUnlockWeek, pendingOffer, stepWeek } from './week'
 
 function line(): Hospital {
   const h = createHospital()
@@ -203,6 +204,41 @@ describe('offline skills', () => {
 
     const result = settleOffline(h, now)
     expect(getSkill(result.hospital, 'disinfect')!.cdLeft).toBe(0)
+  })
+
+  it('does not chain-timeout week offers while catching up', () => {
+    const now = 12_000_000
+    const h = line()
+    h.fame = 0
+    h.discharged = 100
+    demoUnlockWeek(h, now - 180_000)
+    stepWeek(h, now - 180_000)
+    expect(pendingOffer(h)).toBeTruthy()
+    h.lastTick = now - 180_000
+    const money = h.money
+    const result = settleOffline(h, now)
+    expect(result.hospital.money).toBe(money + SPECIAL_TRANSFER_FEE)
+    expect(result.hospital.week?.pendingOfferId ? 1 : 0).toBeLessThanOrEqual(1)
+    const pending = pendingOffer(result.hospital)
+    if (pending) expect(result.hospital.week?.pendingOfferId).toBe(pending.specialId)
+  })
+
+  it('syncs a stale week clock after catch-up', () => {
+    const started = 20_000_000
+    const h = line()
+    h.fame = 0
+    h.discharged = 100
+    demoUnlockWeek(h, started)
+    stepWeek(h, started)
+    h.week!.endsAt = started + 1500
+    h.week!.nextSpawnAt = 1e15
+    h.week!.scores = [0, 0, 0, 0]
+    h.lastTick = started
+    const money = h.money
+    const result = settleOffline(h, started + 4000)
+    expect(result.hospital.money).toBe(money)
+    expect(result.hospital.week!.weekId).toBe(2)
+    expect(result.hospital.week!.endsAt).toBeGreaterThan(started + 4000)
   })
 
   it('runs HoT during catch-up', () => {

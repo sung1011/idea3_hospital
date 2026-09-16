@@ -1,5 +1,25 @@
-import { inGrid, isUnlocked, manhattan, nextId, occupied, pickOpenRoom, roomTile } from './query'
-import { GRID_SIZE, MAX_SPECIALIST, MAX_WAITING, RECEPTION_COLS, ROOM_DEF, UPGRADE_COMPACT, UPGRADE_DUAL, UPGRADE_QUEUE } from './tables'
+import {
+  canOverflowToHall,
+  inGrid,
+  isUnlocked,
+  manhattan,
+  nextId,
+  occupied,
+  pickOpenHall,
+  pickOpenRoom,
+  roomTile,
+} from './query'
+import {
+  GRID_SIZE,
+  MAX_SPECIALIST,
+  MAX_WAITING,
+  RAGE_LEAVE_SOFT,
+  RECEPTION_COLS,
+  ROOM_DEF,
+  UPGRADE_COMPACT,
+  UPGRADE_DUAL,
+  UPGRADE_QUEUE,
+} from './tables'
 import type { ActionResult, Hospital, Patient, RoomType, Tile } from './types'
 import { leavePatient, startWalkTo } from './patientAct'
 
@@ -69,16 +89,41 @@ export function sellRoom(h: Hospital, roomId: string): ActionResult {
     p.rage = Math.min(100, p.rage + 20)
     rerouteAfterSell(h, p, room.type)
   }
+  for (const p of h.patients) {
+    if (p.toRoomId !== roomId) continue
+    if (p.state === 'done' || p.state === 'leave' || p.state === 'dead') continue
+    p.toRoomId = null
+    rerouteAfterSell(h, p, room.type)
+  }
   return { ok: true }
 }
 
 function rerouteAfterSell(h: Hospital, p: Patient, type: RoomType) {
   const from = { r: Math.round(p.y), c: Math.round(p.x) }
-    const next = pickOpenRoom(h, type, from, p)
+  const next = pickOpenRoom(h, type, from, p)
   if (next) {
     p.toHall = false
     p.toDoor = false
     startWalkTo(h, p, roomTile(next, from), next.id, false, false)
+    return
+  }
+  if (canOverflowToHall(h, type, p)) {
+    const hall = pickOpenHall(h)
+    if (hall) {
+      startWalkTo(h, p, roomTile(hall, from), hall.id, true, false)
+      return
+    }
+    if (p.rage >= RAGE_LEAVE_SOFT) {
+      leavePatient(h, p)
+      return
+    }
+    p.blocked = true
+    p.state = 'walk'
+    p.walkRemain = 0
+    p.walkTotal = 0
+    p.toRoomId = null
+    p.toHall = false
+    p.toDoor = false
     return
   }
   leavePatient(h, p)

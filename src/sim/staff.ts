@@ -1,6 +1,17 @@
-import { nextId, stationSlots } from './query'
+import { nextId, nurseCoef, stationSlots } from './query'
 import { HIRE_DOCTOR, HIRE_NURSE, MAX_NURSES, START_NURSES } from './tables'
 import type { ActionResult, Hospital } from './types'
+
+function rescaleWalks(h: Hospital, prevCoef: number) {
+  const next = nurseCoef(h)
+  if (prevCoef <= 0 || prevCoef === next) return
+  const ratio = next / prevCoef
+  for (const p of h.patients) {
+    if (p.state !== 'walk' || p.blocked) continue
+    p.walkRemain *= ratio
+    p.walkTotal *= ratio
+  }
+}
 
 export function hireDoctor(h: Hospital): ActionResult {
   if (h.money < HIRE_DOCTOR) return { ok: false, reason: '钱不够' }
@@ -12,8 +23,10 @@ export function hireDoctor(h: Hospital): ActionResult {
 export function hireNurse(h: Hospital): ActionResult {
   if (h.nurses >= MAX_NURSES) return { ok: false, reason: '护士满了' }
   if (h.money < HIRE_NURSE) return { ok: false, reason: '钱不够' }
+  const prev = nurseCoef(h)
   h.money -= HIRE_NURSE
   h.nurses += 1
+  rescaleWalks(h, prev)
   return { ok: true }
 }
 
@@ -32,8 +45,10 @@ export function fireDoctor(h: Hospital, doctorId: string): ActionResult {
 export function fireNurse(h: Hospital): ActionResult {
   if (h.nurses <= 0) return { ok: false, reason: '没有护士' }
   const refund = h.nurses > START_NURSES ? Math.floor(HIRE_NURSE * 0.5) : 0
+  const prev = nurseCoef(h)
   h.nurses -= 1
   h.money += refund
+  rescaleWalks(h, prev)
   return { ok: true }
 }
 

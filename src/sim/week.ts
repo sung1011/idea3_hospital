@@ -43,6 +43,13 @@ import type {
   WeekRank,
 } from './types'
 
+export type WeekStepOpts = {
+  /** 默认发奖。离线追 tick 时关掉，由调用方最多结一次。 */
+  payRewards?: boolean
+  /** 默认把城市病人要约给玩家。离线追 tick 时关掉，上线再补 1 张。 */
+  playerOffers?: boolean
+}
+
 export { canEnterSpecialist }
 
 export function hospitalOf(owner: Hospital, id: string): Hospital | null {
@@ -193,7 +200,7 @@ export function tickRivals(owner: Hospital, opts: TickOpts = {}) {
   resolveSpecials(owner, opts.now)
 }
 
-function spawnCityPatient(h: Hospital, now: number) {
+function spawnCityPatient(h: Hospital, now: number, playerOffers: boolean) {
   if (!h.week) return
   if (h.week.spawned >= CITY_SPECIALS) return
   const city: CityPatient = {
@@ -207,14 +214,14 @@ function spawnCityPatient(h: Hospital, now: number) {
   h.week.cityQueue.push(city)
   h.week.spawned += 1
   h.week.nextSpawnAt = now + randInt(h, SPECIAL_SPAWN_MIN_MS, SPECIAL_SPAWN_MAX_MS)
-  if (!h.week.pendingOfferId) h.week.pendingOfferId = city.specialId
+  if (playerOffers && !h.week.pendingOfferId) h.week.pendingOfferId = city.specialId
 }
 
-function spawnDue(h: Hospital, now: number) {
+function spawnDue(h: Hospital, now: number, playerOffers: boolean) {
   if (!h.week) return
   let guard = 0
   while (h.week.spawned < CITY_SPECIALS && now >= h.week.nextSpawnAt && guard++ < CITY_SPECIALS) {
-    spawnCityPatient(h, now)
+    spawnCityPatient(h, now, playerOffers)
   }
 }
 
@@ -263,6 +270,13 @@ function applyRewards(owner: Hospital, ranks: WeekRank[]) {
     hosp.money += reward.money
     addFame(hosp, reward.fame)
   }
+}
+
+export function payWeekRanks(owner: Hospital, ranks: WeekRank[]): boolean {
+  if (!ranks.some((row) => row.score > 0)) return false
+  applyRewards(owner, ranks)
+  if (owner.week) owner.week.lastResult = ranks
+  return true
 }
 
 function purgeSpecialPatients(owner: Hospital) {
@@ -329,18 +343,16 @@ function openWeek(
   }
 }
 
-function settleWeek(h: Hospital, now: number) {
-  if (!h.week) return
+function settleWeek(h: Hospital, now: number): WeekRank[] {
+  if (!h.week) return []
   flushLeftoverSpecials(h, now)
   const ranks = rankWeek(h.week)
-  applyRewards(h, ranks)
   const recipeId = nextRecipe(h.week.recipeId)
   const infectMul = h.week.pendingInfectMul
   const weekId = h.week.weekId + 1
   const rivals = h.week.rivals
-  const lastResult = ranks
   openWeek(h, now, weekId, recipeId, infectMul, rivals)
-  if (h.week) h.week.lastResult = lastResult
+  return ranks
 }
 
 export function ensureWeek(h: Hospital, now = Date.now()) {
@@ -361,20 +373,25 @@ export function advanceGame(hospital: Hospital, now = Date.now()): Hospital {
   return h
 }
 
-export function stepWeek(h: Hospital, now = Date.now()) {
-  if (!isUnlocked(h, 'week')) return
+export function stepWeek(h: Hospital, now = Date.now(), opts: WeekStepOpts = {}): WeekRank[] | null {
+  if (!isUnlocked(h, 'week')) return null
   ensureWeek(h, now)
-  if (!h.week) return
+  if (!h.week) return null
+  const playerOffers = opts.playerOffers !== false
+  let firstContested: WeekRank[] | null = null
   let guard = 0
   while (now >= h.week.endsAt && guard++ < 60) {
     expireOffers(h, h.week.endsAt)
-    spawnDue(h, h.week.endsAt)
-    settleWeek(h, h.week.endsAt)
-    if (!h.week) return
+    spawnDue(h, h.week.endsAt, playerOffers)
+    const ranks = settleWeek(h, h.week.endsAt)
+    if (!firstContested && ranks.some((row) => row.score > 0)) firstContested = ranks
+    if (!h.week) return firstContested
   }
+  if (opts.payRewards !== false && firstContested) payWeekRanks(h, firstContested)
   expireOffers(h, now)
-  spawnDue(h, now)
-  backfillWeekOffer(h, now)
+  spawnDue(h, now, playerOffers)
+  if (playerOffers) backfillWeekOffer(h, now)
+  return firstContested
 }
 
 export function chooseOffer(h: Hospital, choice: OfferChoice): ActionResult {

@@ -45,8 +45,13 @@ export function nextUnlockHint(h: Hospital): string | null {
   return `下一档 ${row.at} 出院 · ${names.join(' / ')}`
 }
 
-export function nurseCoef(h: Hospital): number {
-  return Math.max(NURSE_WALK_FLOOR, 1 - NURSE_WALK_STEP * h.nurses)
+export function nurseCoef(nursesOrHospital: number | Hospital): number {
+  const nurses = typeof nursesOrHospital === 'number' ? nursesOrHospital : nursesOrHospital.nurses
+  return Math.max(NURSE_WALK_FLOOR, 1 - NURSE_WALK_STEP * nurses)
+}
+
+export function nurseWalkLabel(nursesOrHospital: number | Hospital): string {
+  return `走路 ×${nurseCoef(nursesOrHospital).toFixed(2)}`
 }
 
 export function manhattan(a: Tile, b: Tile): number {
@@ -161,19 +166,28 @@ export function roomsOf(h: Hospital, type: RoomType): Room[] {
 export function canEnterSpecialist(room: Room, p: Patient): boolean {
   if (room.type !== 'specialist') return false
   if (!p.isSpecial) return false
-  if (p.recipeId && room.recipeId && room.recipeId !== p.recipeId) return false
+  if (p.recipeId && room.recipeId !== p.recipeId) return false
   if (p.recipeId === 'continue' && p.transferCount < 1) return false
   return true
 }
 
-export function pickOpenRoom(h: Hospital, type: RoomType, from: Tile, p?: Patient): Room | undefined {
-  const open = roomsOf(h, type).filter((r) => {
-    if (r.queue.length >= queueCap(r)) return false
+export function enterableRooms(h: Hospital, type: RoomType, p?: Patient): Room[] {
+  return roomsOf(h, type).filter((r) => {
     if (type === 'specialist' && p?.isSpecial && !canEnterSpecialist(r, p)) return false
     return true
   })
+}
+
+export function pickOpenRoom(h: Hospital, type: RoomType, from: Tile, p?: Patient): Room | undefined {
+  const open = enterableRooms(h, type, p).filter((r) => r.queue.length < queueCap(r))
   open.sort((a, b) => manhattan(from, roomTile(a, from)) - manhattan(from, roomTile(b, from)))
   return open[0]
+}
+
+/** 候诊厅只接「下一环存在但队满」。缺房 / 专科进不去不溢入。 */
+export function canOverflowToHall(h: Hospital, type: RoomType, p?: Patient): boolean {
+  const dests = enterableRooms(h, type, p)
+  return dests.length > 0 && dests.every((r) => r.queue.length >= queueCap(r))
 }
 
 export function pickOpenHall(h: Hospital): Room | undefined {

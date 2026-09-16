@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildRoom } from './build'
 import { createHospital } from './createHospital'
-import { leavePatient } from './flow'
+import { leavePatient, makePatient, routePatient } from './flow'
 import { settleOffline } from './offline'
 import { isUnlocked } from './query'
 import { assignDoctor } from './staff'
@@ -112,6 +112,8 @@ describe('recipes', () => {
     p.transferCount = 1
     expect(canEnterSpecialist(room, p as never)).toBe(true)
     room.recipeId = 'isolate'
+    expect(canEnterSpecialist(room, p as never)).toBe(false)
+    delete (room as { recipeId?: RecipeId }).recipeId
     expect(canEnterSpecialist(room, p as never)).toBe(false)
   })
 })
@@ -330,6 +332,64 @@ describe('week settlement', () => {
     stepWeek(h, OFFER_DEADLINE_MS + 1)
     expect(h.week!.pendingOfferId).not.toBe(city.specialId)
     expect(h.money).toBe(money + SPECIAL_TRANSFER_FEE)
+  })
+
+  it('does not pay rank rewards when every hospital scored 0', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    h.week!.scores = [0, 0, 0, 0]
+    h.week!.endsAt = 100
+    h.week!.nextSpawnAt = 1e15
+    const money = h.money
+    const fame = h.fame
+    stepWeek(h, 100)
+    expect(h.money).toBe(money)
+    expect(h.fame).toBe(fame)
+    expect(h.week!.weekId).toBe(2)
+    expect(h.week!.recipeId).toBe('micro')
+    expect(h.interceptUsed).toBe(false)
+  })
+
+  it('only pays the first contested week when the clock jumps multiple weeks', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    h.interceptUsed = true
+    h.week!.scores = [20, 14, 10, 0]
+    h.week!.endsAt = 100
+    h.week!.nextSpawnAt = 1e15
+    const money = h.money
+    const fame = h.fame
+    stepWeek(h, 100 + WEEK_MS)
+    expect(h.money).toBe(money + 150)
+    expect(h.fame).toBe(fame + 8)
+    expect(h.week!.weekId).toBe(3)
+    expect(h.week!.recipeId).toBe('continue')
+    expect(h.interceptUsed).toBe(false)
+    expect(h.week!.lastResult?.[0]).toMatchObject({ id: 'player', score: 20, place: 1 })
+    expect(h.week!.endsAt).toBeGreaterThan(100 + WEEK_MS)
+  })
+
+  it('does not park a continue special in the hall when specialist is closed to them', () => {
+    const h = unlock(0)
+    isolateLine(h)
+    h.discharged = 100
+    buildRoom(h, 'waiting', [{ r: 4, c: 0 }])
+    const spec = h.rooms.find((r) => r.type === 'specialist')!
+    spec.recipeId = 'continue'
+    const p = makePatient(h, 'special')
+    p.isSpecial = true
+    p.recipeId = 'continue'
+    p.transferCount = 0
+    p.path = [...RECIPE.continue.path]
+    p.node = 2
+    p.state = 'walk'
+    p.x = 2
+    p.y = 3
+    h.patients.push(p)
+    routePatient(h, p)
+    expect(canEnterSpecialist(spec, p)).toBe(false)
+    expect(p.toHall).toBe(false)
+    expect(p.blocked).toBe(true)
   })
 })
 

@@ -2,6 +2,7 @@ import { applyErPath, cutsToFront, shouldMarkEr, skippedDiagnosis } from './er'
 import {
   addFame,
   actualThroughput,
+  canOverflowToHall,
   doorTile,
   erDoorTile,
   fieldCount,
@@ -130,10 +131,12 @@ export function routePatient(h: Hospital, p: Patient) {
     startWalkTo(h, p, roomTile(room, from), room.id, false, false)
     return
   }
-  const hall = pickOpenHall(h)
-  if (hall) {
-    startWalkTo(h, p, roomTile(hall, from), hall.id, true, false)
-    return
+  if (canOverflowToHall(h, p.path[p.node], p)) {
+    const hall = pickOpenHall(h)
+    if (hall) {
+      startWalkTo(h, p, roomTile(hall, from), hall.id, true, false)
+      return
+    }
   }
   if (p.rage >= RAGE_LEAVE_SOFT) {
     leavePatient(h, p)

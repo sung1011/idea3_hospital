@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { nurseWalkLabel } from '../sim/query'
 import { HIRE_DOCTOR, HIRE_NURSE, MAX_NURSES } from '../sim/tables'
 import { useGameStore } from './gameStore'
 
@@ -8,6 +9,15 @@ const idleDoctor = computed(() => game.hospital.doctors.find((d) => !d.roomId))
 const canHireDoctor = computed(() => game.hospital.money >= HIRE_DOCTOR)
 const canHireNurse = computed(() => game.hospital.nurses < MAX_NURSES && game.hospital.money >= HIRE_NURSE)
 const canFireNurse = computed(() => game.hospital.nurses > 0)
+const walkNow = computed(() => nurseWalkLabel(game.hospital))
+const hireNurseTip = computed(() => {
+  if (game.hospital.nurses >= MAX_NURSES) return '护士满了'
+  if (game.hospital.money < HIRE_NURSE) return '钱不够'
+  return `${walkNow.value} → ${nurseWalkLabel(game.hospital.nurses + 1)}`
+})
+const fireNurseTip = computed(() =>
+  game.hospital.nurses > 1 ? '多招的退 40；走路立刻变慢' : '开局那名不退钱',
+)
 </script>
 
 <template>
@@ -27,17 +37,25 @@ const canFireNurse = computed(() => game.hospital.nurses > 0)
     <button v-if="idleDoctor" type="button" aria-label="解雇空闲医生，开局送的不退钱" @click="game.fireDoctor(idleDoctor.id)">
       解雇空闲医生
     </button>
-    <span>护士 {{ game.hospital.nurses }}/{{ MAX_NURSES }}</span>
+    <span>护士 {{ game.hospital.nurses }}/{{ MAX_NURSES }} · {{ walkNow }}</span>
     <button
       type="button"
       :disabled="!canHireNurse"
-      :aria-label="canHireNurse ? `招护士 ${HIRE_NURSE} 钱` : game.hospital.nurses >= MAX_NURSES ? '护士满了' : '钱不够，招不了护士'"
-      :title="canHireNurse ? '' : game.hospital.nurses >= MAX_NURSES ? '护士满了' : '钱不够'"
+      :aria-label="canHireNurse ? `招护士 ${HIRE_NURSE} 钱，${hireNurseTip}` : hireNurseTip"
+      :title="hireNurseTip"
       @click="game.hireNurse()"
     >
       招护士 · {{ HIRE_NURSE }}
     </button>
-    <button type="button" :disabled="!canFireNurse" aria-label="解雇一名护士" @click="game.fireNurse()">解雇护士</button>
+    <button
+      type="button"
+      :disabled="!canFireNurse"
+      :aria-label="`解雇一名护士。${fireNurseTip}`"
+      :title="fireNurseTip"
+      @click="game.fireNurse()"
+    >
+      解雇护士
+    </button>
   </div>
 </template>
 

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { buildRoom, sellRoom, upgradeQueue } from './build'
 import { createHospital } from './createHospital'
 import { chooseEvent } from './events'
-import { makePatient, spawnPatient, walkDuration } from './flow'
-import { nextUnlockHint, pollutionCoef } from './query'
+import { makePatient, routePatient, spawnPatient, walkDuration } from './flow'
+import { nextUnlockHint, nurseCoef, nurseWalkLabel, pollutionCoef } from './query'
 import { stepPollution } from './pollution'
 import { assignDoctor, fireDoctor, fireNurse, hireNurse } from './staff'
 import { START_DOCTORS, START_FAME, START_MONEY } from './tables'
@@ -159,6 +159,10 @@ describe('staff and pollution', () => {
     const from = { r: 4, c: 2 }
     const to = { r: 0, c: 2 }
     expect(walkDuration(b, from, to)).toBeLessThan(walkDuration(a, from, to))
+    expect(nurseCoef(0)).toBe(1)
+    expect(nurseCoef(1)).toBeCloseTo(0.85)
+    expect(nurseCoef(4)).toBe(0.4)
+    expect(nurseWalkLabel(1)).toBe('走路 ×0.85')
   })
 
   it('empty station has zero throughput so the room only blocks', () => {
@@ -186,6 +190,21 @@ describe('staff and pollution', () => {
     h.money = 80
     expect(hireNurse(h).ok).toBe(true)
     expect(h.nurses).toBe(2)
+  })
+
+  it('rescales an in-progress walk when nurse count changes', () => {
+    const h = createHospital()
+    const p = makePatient(h, 'cold')
+    p.state = 'walk'
+    p.walkRemain = 8.5
+    p.walkTotal = 8.5
+    h.patients.push(p)
+    expect(hireNurse(h).ok).toBe(true)
+    expect(p.walkRemain).toBeCloseTo(7)
+    expect(p.walkTotal).toBeCloseTo(7)
+    expect(fireNurse(h).ok).toBe(true)
+    expect(p.walkRemain).toBeCloseTo(8.5)
+    expect(h.nurses).toBe(1)
   })
 
   it('does not refund gifted starting staff', () => {
@@ -244,12 +263,47 @@ describe('waiting hall and events', () => {
     h.discharged = 15
     h.money = 400
     buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    buildRoom(h, 'diagnosis', [{ r: 3, c: 2 }])
     buildRoom(h, 'waiting', [{ r: 4, c: 0 }])
     assignDoctor(h, h.doctors[0].id, h.rooms[0].id)
-    const next = ticks(h, 80)
-    const hall = next.rooms.find((r) => r.type === 'waiting')
-    expect(hall).toBeTruthy()
-    expect((hall?.queue.length ?? 0) + next.leftCount).toBeGreaterThan(0)
+    const diag = h.rooms.find((r) => r.type === 'diagnosis')!
+    for (let i = 0; i < 4; i++) {
+      const p = makePatient(h, 'cold')
+      p.node = 1
+      p.state = 'queue'
+      p.inRoomId = diag.id
+      h.patients.push(p)
+      diag.queue.push(p.id)
+    }
+    const extra = makePatient(h, 'cold')
+    extra.node = 1
+    extra.state = 'walk'
+    extra.x = 2
+    extra.y = 4
+    h.patients.push(extra)
+    routePatient(h, extra)
+    const hall = h.rooms.find((r) => r.type === 'waiting')!
+    expect(extra.toHall).toBe(true)
+    expect(extra.toRoomId).toBe(hall.id)
+  })
+
+  it('does not overflow into a hall when the next room is missing', () => {
+    const h = createHospital()
+    h.rollMode = 'always'
+    h.eventIn = 99999
+    h.discharged = 15
+    h.money = 400
+    buildRoom(h, 'reception', [{ r: 4, c: 2 }])
+    buildRoom(h, 'waiting', [{ r: 4, c: 0 }])
+    const p = makePatient(h, 'cold')
+    p.node = 1
+    p.state = 'walk'
+    p.x = 2
+    p.y = 4
+    h.patients.push(p)
+    routePatient(h, p)
+    expect(p.toHall).toBe(false)
+    expect(p.blocked).toBe(true)
   })
 
   it('applies a daily event choice', () => {
